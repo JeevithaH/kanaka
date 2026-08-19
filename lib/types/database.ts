@@ -53,6 +53,7 @@ export interface Course {
   duration_minutes: number;
   lesson_count: number;
   credential_available: boolean;
+  price_inr: number;
   is_published: boolean;
   skills?: string[];
   created_at: string;

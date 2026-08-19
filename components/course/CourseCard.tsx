@@ -11,6 +11,7 @@ export interface Course {
   durationMinutes: number;
   lessonCount: number;
   slug: string;
+  priceInr?: number;
 }
 
 export function formatDuration(minutes: number) {
@@ -25,6 +26,8 @@ interface CourseCardProps {
 }
 
 export function CourseCard({ course, className }: CourseCardProps) {
+  const price = course.priceInr ?? 200;
+
   return (
     <div className={cn("flex flex-col bg-white border border-[#e0e0e0] hover:shadow-sm transition-shadow rounded-none overflow-hidden", className)}>
       <div className="aspect-[3/2] bg-[#e0e0e0] w-full" />
@@ -45,7 +48,8 @@ export function CourseCard({ course, className }: CourseCardProps) {
             <span>{course.lessonCount} lessons</span>
           </div>
         </div>
-        <div className="mt-auto pt-4 border-t border-[#e0e0e0]">
+        <div className="mt-auto pt-4 border-t border-[#e0e0e0] flex items-center justify-between">
+          <span className="text-[#161616] text-base font-semibold">₹{price}</span>
           <Link href={`/courses/${course.slug}`} className="text-[#0f62fe] text-sm inline-flex items-center gap-1 hover:underline font-medium">
             View course →
           </Link>
