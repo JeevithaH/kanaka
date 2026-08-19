@@ -18,6 +18,8 @@ export interface IUser extends Document {
   passwordHash: string;
   role: 'student' | 'admin';
   profile: IUserProfile;
+  accountStatus: 'active' | 'suspended' | 'deactivated';
+  isActive: boolean;
   registrationDate: Date;
   lastLogin?: Date;
   createdAt: Date;
@@ -58,6 +60,15 @@ const UserSchema: Schema = new Schema<IUser>(
       location: { type: String, default: '' },
       linkedinUrl: { type: String, default: '' },
       githubUrl: { type: String, default: '' },
+    },
+    accountStatus: {
+      type: String,
+      enum: ['active', 'suspended', 'deactivated'],
+      default: 'active',
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
     registrationDate: {
       type: Date,

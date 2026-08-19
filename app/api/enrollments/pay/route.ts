@@ -2,34 +2,17 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { Enrollment } from '@/models/Enrollment';
 import { Course } from '@/models/Course';
-
-function getUserFromCookie(req: Request) {
-  const cookieHeader = req.headers.get('cookie') || '';
-  const match = cookieHeader.match(/skyrellac_session=([^;]+)/);
-  if (!match) return null;
-  try {
-    return JSON.parse(decodeURIComponent(match[1]));
-  } catch {
-    return null;
-  }
-}
-
-const VALID_COUPONS: Record<string, number> = {
-  SKY90: 90,
-  PROMO90: 90,
-  OFF90: 90,
-  SKYRELLA90: 90,
-  SPECIAL90: 90,
-};
+import { Coupon } from '@/models/Coupon';
+import { Payment } from '@/models/Payment';
+import { Notification } from '@/models/Notification';
+import { requireAuth } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
-    const user = getUserFromCookie(req);
-    if (!user || !user.id) {
-      return NextResponse.json({ error: 'Unauthorized. Please log in to complete payment.' }, { status: 401 });
-    }
+    const { user, errorResponse } = await requireAuth(req);
+    if (errorResponse) return errorResponse;
 
-    const { courseId, couponCode } = await req.json();
+    const { courseId, couponCode, paymentMethod } = await req.json();
     if (!courseId) {
       return NextResponse.json({ error: 'Course ID is required.' }, { status: 400 });
     }
@@ -44,18 +27,30 @@ export async function POST(req: Request) {
     const originalPrice = course.originalPrice || 1999;
     let finalAmount = originalPrice;
     let appliedCoupon = '';
+    let discountAmount = 0;
 
     const cleanCoupon = (couponCode || '').trim().toUpperCase();
-    if (cleanCoupon && VALID_COUPONS[cleanCoupon]) {
-      const discountPct = VALID_COUPONS[cleanCoupon];
-      finalAmount = Math.round(originalPrice * (1 - discountPct / 100)); // 1999 -> 199
-      appliedCoupon = cleanCoupon;
+    if (cleanCoupon) {
+      const dbCoupon = await Coupon.findOne({ code: cleanCoupon, isActive: true });
+      if (dbCoupon) {
+        if (dbCoupon.type === 'percentage') {
+          discountAmount = Math.round(originalPrice * (dbCoupon.discountPercentage / 100));
+          finalAmount = Math.max(0, originalPrice - discountAmount);
+        } else if (dbCoupon.type === 'fixed') {
+          discountAmount = dbCoupon.discountAmount || 0;
+          finalAmount = Math.max(0, originalPrice - discountAmount);
+        }
+        appliedCoupon = cleanCoupon;
+        dbCoupon.currentUses += 1;
+        await dbCoupon.save();
+      }
     }
 
-    let enrollment = await Enrollment.findOne({ userId: user.id, courseId });
+    // Find or create enrollment
+    let enrollment = await Enrollment.findOne({ userId: user!.id, courseId });
     if (!enrollment) {
       enrollment = new Enrollment({
-        userId: user.id,
+        userId: user!.id,
         courseId,
         enrollmentDate: new Date(),
         status: 'active',
@@ -72,11 +67,40 @@ export async function POST(req: Request) {
     enrollment.couponUsed = appliedCoupon;
     await enrollment.save();
 
+    // Create audit Payment record
+    const transactionId = 'TXN-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    await Payment.create({
+      transactionId,
+      userId: user!.id,
+      userName: user!.name,
+      userEmail: user!.email,
+      amount: finalAmount,
+      currency: 'INR',
+      paymentStatus: 'completed',
+      paymentMethod: paymentMethod || 'upi',
+      serviceType: 'course',
+      serviceId: courseId,
+      serviceName: course.title,
+      couponUsed: appliedCoupon,
+      discountAmount,
+      gatewayReference: 'SIMULATED-' + Date.now(),
+    });
+
+    // Create Notification
+    await Notification.create({
+      userId: user!.id,
+      title: 'Payment Confirmed & Course Unlocked',
+      message: `Your payment of ₹${finalAmount} for "${course.title}" was successful. Full course access unlocked!`,
+      type: 'payment',
+      relatedId: courseId,
+    });
+
     return NextResponse.json({
       message: 'Payment completed successfully! Course access unlocked.',
       enrollment,
       amountPaid: finalAmount,
       couponUsed: appliedCoupon,
+      transactionId,
     });
   } catch (error: any) {
     console.error('Payment processing error:', error);

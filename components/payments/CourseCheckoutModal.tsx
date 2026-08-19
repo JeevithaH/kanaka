@@ -11,14 +11,6 @@ interface CourseCheckoutModalProps {
   onPaymentSuccess: (updatedEnrollment: any) => void;
 }
 
-const VALID_COUPONS: Record<string, { pct: number; label: string }> = {
-  SKY90: { pct: 90, label: '90% OFF Special Launch Discount' },
-  PROMO90: { pct: 90, label: '90% OFF Promotional Offer' },
-  OFF90: { pct: 90, label: '90% Instant Discount' },
-  SKYRELLA90: { pct: 90, label: '90% OFF Skyrellac Pass' },
-  SPECIAL90: { pct: 90, label: '90% OFF Exclusive Student Offer' },
-};
-
 export function CourseCheckoutModal({
   isOpen,
   onClose,
@@ -28,16 +20,18 @@ export function CourseCheckoutModal({
   onPaymentSuccess,
 }: CourseCheckoutModalProps) {
   const [couponCode, setCouponCode] = useState('');
-  const [appliedDiscount, setAppliedDiscount] = useState<number>(0);
+  const [appliedDiscountPct, setAppliedDiscountPct] = useState<number>(0);
+  const [appliedDiscountAmount, setAppliedDiscountAmount] = useState<number>(0);
   const [appliedCouponName, setAppliedCouponName] = useState<string>('');
   const [couponError, setCouponError] = useState<string>('');
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   if (!isOpen) return null;
 
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
     setCouponError('');
     const clean = couponCode.trim().toUpperCase();
     if (!clean) {
@@ -45,20 +39,36 @@ export function CourseCheckoutModal({
       return;
     }
 
-    if (VALID_COUPONS[clean]) {
-      setAppliedDiscount(VALID_COUPONS[clean].pct);
-      setAppliedCouponName(clean);
-      setCouponError('');
-    } else {
-      setAppliedDiscount(0);
-      setAppliedCouponName('');
-      setCouponError('Invalid coupon code. Original price ₹1,999 applies.');
+    setIsValidatingCoupon(true);
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: clean, originalPrice }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.valid) {
+        setAppliedDiscountPct(0);
+        setAppliedDiscountAmount(0);
+        setAppliedCouponName('');
+        setCouponError(data.error || 'Invalid or expired coupon code.');
+      } else {
+        setAppliedDiscountPct(data.discountPercentage);
+        setAppliedDiscountAmount(data.discountAmount);
+        setAppliedCouponName(data.code);
+        setCouponError('');
+      }
+    } catch {
+      setCouponError('Network error while validating coupon code.');
+    } finally {
+      setIsValidatingCoupon(false);
     }
   };
 
-  const finalAmount = appliedDiscount > 0
-    ? Math.round(originalPrice * (1 - appliedDiscount / 100)) // 199
-    : originalPrice; // 1999
+  const finalAmount = appliedDiscountAmount > 0
+    ? Math.max(0, originalPrice - appliedDiscountAmount)
+    : originalPrice;
 
   const handleCompletePayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,17 +130,17 @@ export function CourseCheckoutModal({
             <p className="text-xs text-[#198038] font-medium">✓ Lifetime Access + Final Exam + Certificate</p>
           </div>
 
-          {/* Price breakdown before coupon */}
+          {/* Price breakdown */}
           <div className="space-y-2 border-b border-[#e0e0e0] pb-4">
             <div className="flex justify-between text-sm text-[#161616]">
               <span>Course Base Amount:</span>
               <span className="font-semibold">₹{originalPrice.toLocaleString()}</span>
             </div>
 
-            {appliedDiscount > 0 && (
+            {appliedDiscountAmount > 0 && (
               <div className="flex justify-between text-sm text-[#198038]">
-                <span>Coupon ({appliedCouponName} - {appliedDiscount}% OFF):</span>
-                <span className="font-semibold">-₹{(originalPrice - finalAmount).toLocaleString()}</span>
+                <span>Coupon ({appliedCouponName} - {appliedDiscountPct}% OFF):</span>
+                <span className="font-semibold">-₹{appliedDiscountAmount.toLocaleString()}</span>
               </div>
             )}
 
@@ -143,22 +153,23 @@ export function CourseCheckoutModal({
           {/* Coupon Code Section */}
           <div className="space-y-2 bg-[#f8fafc] border border-[#cbd5e1] p-4 rounded-xl">
             <label className="block text-xs font-semibold text-[#161616]">
-              Have a Coupon Code? (Try <span className="text-[#0f62fe] underline">SKY90</span> for 90% OFF)
+              Have a Promo / Coupon Code?
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value)}
-                placeholder="Enter coupon code (e.g. SKY90)"
+                placeholder="Enter coupon code"
                 className="flex-1 border border-[#94a3b8] px-3 py-2 text-sm rounded-lg uppercase focus:outline-none focus:border-[#0f62fe] bg-white text-[#161616]"
               />
               <button
                 type="button"
                 onClick={handleApplyCoupon}
-                className="bg-[#161616] text-white px-4 py-2 text-xs font-semibold rounded-lg hover:bg-[#393939] transition-colors shrink-0"
+                disabled={isValidatingCoupon}
+                className="bg-[#161616] text-white px-4 py-2 text-xs font-semibold rounded-lg hover:bg-[#393939] transition-colors shrink-0 disabled:opacity-50"
               >
-                Apply Code
+                {isValidatingCoupon ? 'Validating...' : 'Apply Code'}
               </button>
             </div>
 
@@ -166,10 +177,10 @@ export function CourseCheckoutModal({
               <p className="text-xs text-[#da1e28] mt-1 font-medium">{couponError}</p>
             )}
 
-            {appliedDiscount > 0 && (
+            {appliedDiscountAmount > 0 && (
               <div className="text-xs text-[#198038] font-bold flex items-center gap-1.5 mt-1 bg-[#defbe6] p-2 rounded-md">
                 <span>✓</span>
-                <span>Coupon &apos;{appliedCouponName}&apos; applied! You save ₹{(originalPrice - finalAmount).toLocaleString()}</span>
+                <span>Coupon &apos;{appliedCouponName}&apos; applied! You save ₹{appliedDiscountAmount.toLocaleString()}</span>
               </div>
             )}
           </div>

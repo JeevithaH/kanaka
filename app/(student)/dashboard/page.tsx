@@ -4,16 +4,31 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { CourseCheckoutModal } from '@/components/payments/CourseCheckoutModal';
+import {
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  Award,
+  Briefcase,
+  AlertCircle,
+  Bell,
+  ArrowRight,
+  ShieldCheck,
+  Send,
+} from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
-interface EnrollmentData {
+interface CourseEnrollmentData {
   _id: string;
   courseId: string;
   courseTitle: string;
   category: string;
-  paymentStatus?: 'pending' | 'paid';
-  amountPaid?: number;
+  totalLessons: number;
+  completedLessonsCount: number;
+  remainingLessonsCount: number;
   progressPercentage: number;
-  status: string;
+  paymentStatus: 'pending' | 'paid';
+  amountPaid: number;
   certificateStatus: {
     eligible: boolean;
     issued: boolean;
@@ -21,51 +36,86 @@ interface EnrollmentData {
   };
 }
 
+interface InternshipEnrollmentData {
+  _id: string;
+  internshipId: string;
+  title: string;
+  organization: string;
+  mode: string;
+  durationWeeks: number;
+  status: string;
+  progressPercentage: number;
+  validationStatus: 'pending' | 'paid' | 'validated';
+  validationFee: number;
+  taskProgress: Array<{
+    taskId: string;
+    status: string;
+    score?: number;
+    feedback?: string;
+  }>;
+}
+
 interface TaskData {
   _id: string;
-  courseId: string;
-  courseTitle: string;
+  taskId?: string;
+  courseId?: string;
+  internshipId?: string;
+  courseTitle?: string;
   title: string;
+  description?: string;
+  instructions?: string;
   dueDate: string;
-  status: 'pending' | 'completed';
+  status: 'pending' | 'completed' | 'submitted' | 'under-review' | 'approved' | 'rejected';
+}
+
+interface NotificationData {
+  _id: string;
+  title: string;
+  message: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
 }
 
 export default function StudentDashboardPage() {
   const { user } = useAuth();
-  const [enrollments, setEnrollments] = useState<EnrollmentData[]>([]);
+  const [courseEnrollments, setCourseEnrollments] = useState<CourseEnrollmentData[]>([]);
+  const [internshipEnrollments, setInternshipEnrollments] = useState<InternshipEnrollmentData[]>([]);
   const [tasks, setTasks] = useState<TaskData[]>([]);
+  const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [timeframe, setTimeframe] = useState<'Weekly' | 'Monthly'>('Monthly');
 
-  // Checkout modal state
+  // Selected task submission modal
+  const [selectedTaskForSubmission, setSelectedTaskForSubmission] = useState<TaskData | null>(null);
+  const [submissionText, setSubmissionText] = useState('');
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+
+  // Course Checkout modal
   const [checkoutCourse, setCheckoutCourse] = useState<{
     courseId: string;
     courseTitle: string;
     originalPrice: number;
   } | null>(null);
 
-  useEffect(() => {
-    async function loadDashboardData() {
-      try {
-        const [enrollRes, taskRes] = await Promise.all([
-          fetch('/api/enrollments'),
-          fetch('/api/tasks'),
-        ]);
+  const fetchDashboardData = async () => {
+    try {
+      const res = await fetch('/api/dashboard');
+      const data = await res.json();
 
-        const enrollData = await enrollRes.json();
-        const taskData = await taskRes.json();
-
-        if (enrollData.enrollments) setEnrollments(enrollData.enrollments);
-        if (taskData.tasks) setTasks(taskData.tasks);
-      } catch (err) {
-        console.error('Error fetching student dashboard data:', err);
-      } finally {
-        setIsLoading(false);
-      }
+      if (data.courseEnrollments) setCourseEnrollments(data.courseEnrollments);
+      if (data.internshipEnrollments) setInternshipEnrollments(data.internshipEnrollments);
+      if (data.tasks) setTasks(data.tasks);
+      if (data.notifications) setNotifications(data.notifications);
+    } catch (err) {
+      console.error('Error fetching student dashboard data:', err);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
+  useEffect(() => {
     if (user) {
-      loadDashboardData();
+      fetchDashboardData();
     }
   }, [user]);
 
@@ -86,416 +136,413 @@ export default function StudentDashboardPage() {
     }
   };
 
-  const handlePaymentSuccess = (updatedEnrollment: any) => {
-    setEnrollments((prev) =>
-      prev.map((e) => (e.courseId === updatedEnrollment.courseId ? { ...e, ...updatedEnrollment, paymentStatus: 'paid' } : e))
-    );
+  const handleTaskSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTaskForSubmission || !submissionText.trim()) return;
+
+    setIsSubmittingTask(true);
+    try {
+      const res = await fetch(`/api/tasks/${selectedTaskForSubmission._id}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          submissionType: 'text',
+          submissionContent: submissionText,
+        }),
+      });
+
+      if (res.ok) {
+        alert('Task submitted successfully for review!');
+        setSelectedTaskForSubmission(null);
+        setSubmissionText('');
+        fetchDashboardData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to submit task');
+      }
+    } catch {
+      alert('Network error while submitting task');
+    } finally {
+      setIsSubmittingTask(false);
+    }
   };
 
-  const completedCount = enrollments.filter((e) => e.progressPercentage === 100 && e.paymentStatus === 'paid').length;
-  const paidEnrollmentsCount = enrollments.filter((e) => e.paymentStatus === 'paid').length;
+  const handlePaymentSuccess = () => {
+    fetchDashboardData();
+  };
 
-  const avgProgress = enrollments.length > 0
-    ? Math.round(enrollments.reduce((acc, curr) => acc + curr.progressPercentage, 0) / enrollments.length)
-    : 45;
+  const totalCompletedLessons = courseEnrollments.reduce((acc, c) => acc + c.completedLessonsCount, 0);
+  const totalLessonsAllCourses = courseEnrollments.reduce((acc, c) => acc + c.totalLessons, 0);
+  const overallCourseProgress = totalLessonsAllCourses > 0
+    ? Math.round((totalCompletedLessons / totalLessonsAllCourses) * 100)
+    : 0;
+
+  const paidCoursesCount = courseEnrollments.filter((c) => c.paymentStatus === 'paid').length;
+  const issuedCertsCount = courseEnrollments.filter((c) => c.certificateStatus?.issued).length;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 p-4 lg:p-8 font-sans">
-      {/* Welcome Header */}
-      <div className="bg-white border border-[#e0e0e0] p-8 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <span className="text-xs uppercase tracking-wider text-[#0f62fe] font-semibold">Student Portal & Analytics</span>
-          <h1 className="text-[#161616] font-light text-3xl lg:text-4xl mt-1">
+    <div className="max-w-7xl mx-auto space-y-8 p-4 lg:p-8 font-sans">
+      {/* Real-Time Personalized User Header */}
+      <div className="bg-white border border-slate-200 p-8 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-soft-sm">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <span className="text-xs uppercase tracking-wider text-blue-700 bg-blue-50 px-3 py-1 rounded-full font-bold border border-blue-200">
+              Student ID: {user?.id || 'N/A'}
+            </span>
+            <span className="text-xs uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full font-bold border border-emerald-200">
+              Account Active
+            </span>
+          </div>
+          <h1 className="text-slate-900 font-black text-3xl lg:text-4xl pt-1">
             Welcome back, {user?.name || 'Learner'}
           </h1>
-          <p className="text-[#525252] text-sm mt-1">
-            Track your real-time learning statistics, course payments, and verified certificates.
+          <p className="text-slate-500 text-sm">
+            {user?.email} • Real-Time Personalized Student Operations Center
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/courses"
-            className="bg-[#0f62fe] text-white text-xs px-4 py-3 font-semibold rounded-xl hover:bg-[#0043ce] transition-colors"
-          >
-            + Explore New Courses
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/courses">
+            <Button variant="glow" size="md">
+              + Browse Catalog
+            </Button>
+          </Link>
+          <Link href="/internships">
+            <Button variant="secondary" size="md">
+              Explore Internships
+            </Button>
           </Link>
         </div>
       </div>
 
-      {/* Overview Metric Pills */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-[#e0e0e0] p-6 rounded-2xl">
-          <p className="text-xs text-[#525252] uppercase tracking-wider font-semibold mb-1">Total Enrolled Courses</p>
-          <p className="text-3xl font-light text-[#161616]">{enrollments.length}</p>
+      {/* Dynamic Key Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-soft-sm space-y-2">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase">
+            <span>Enrolled Courses</span>
+            <BookOpen className="w-4 h-4 text-blue-600" />
+          </div>
+          <p className="text-3xl font-black text-slate-900">{courseEnrollments.length}</p>
+          <p className="text-xs text-slate-500 font-medium">
+            {paidCoursesCount} Paid & Unlocked
+          </p>
         </div>
-        <div className="bg-white border border-[#e0e0e0] p-6 rounded-2xl">
-          <p className="text-xs text-[#525252] uppercase tracking-wider font-semibold mb-1">Paid & Unlocked Courses</p>
-          <p className="text-3xl font-light text-[#0f62fe]">{paidEnrollmentsCount}</p>
+
+        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-soft-sm space-y-2">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase">
+            <span>Lesson Progress</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          </div>
+          <p className="text-3xl font-black text-slate-900">{overallCourseProgress}%</p>
+          <p className="text-xs text-slate-500 font-medium">
+            {totalCompletedLessons} / {totalLessonsAllCourses} Lessons Completed
+          </p>
         </div>
-        <div className="bg-white border border-[#e0e0e0] p-6 rounded-2xl">
-          <p className="text-xs text-[#525252] uppercase tracking-wider font-semibold mb-1">Certificates Earned</p>
-          <p className="text-3xl font-light text-[#198038]">{completedCount}</p>
+
+        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-soft-sm space-y-2">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase">
+            <span>Active Internships</span>
+            <Briefcase className="w-4 h-4 text-purple-600" />
+          </div>
+          <p className="text-3xl font-black text-slate-900">{internshipEnrollments.length}</p>
+          <p className="text-xs text-slate-500 font-medium">
+            {internshipEnrollments.filter((i) => i.validationStatus === 'paid').length} Validated Services
+          </p>
         </div>
-      </div>
 
-      {/* VISUAL DASHBOARD GRAPH CARDS SECTION */}
-      <div className="space-y-4">
-        <h2 className="text-[#161616] font-semibold text-xl">Learning Analytics & Skill Forecast</h2>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* TOP LEFT CARD: Dark Study Statistics Bar Chart */}
-          <div className="bg-[#161616] text-white p-6 lg:p-8 rounded-3xl flex flex-col justify-between shadow-lg relative overflow-hidden">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold tracking-tight text-white">Study statistics</h3>
-                <button
-                  onClick={() => setTimeframe(timeframe === 'Monthly' ? 'Weekly' : 'Monthly')}
-                  className="bg-[#262626] border border-[#393939] text-[#c6c6c6] text-xs px-3 py-1.5 rounded-full hover:text-white transition-colors"
-                >
-                  {timeframe} ▾
-                </button>
-              </div>
-              <p className="text-xs text-[#8d8d8d] mb-6">Updated 1 hour ago</p>
-
-              <div className="flex items-baseline gap-3 mb-8">
-                <span className="text-4xl font-semibold text-white">2,025</span>
-                <span className="text-xs bg-[#22c55e]/20 text-[#42be65] px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                  ✓ mins completed (+18.4%)
-                </span>
-              </div>
-            </div>
-
-            {/* Stacked Bar Chart Graphic */}
-            <div className="pt-4 flex items-end justify-between gap-4 h-48 border-t border-[#393939]/50">
-              <div className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full bg-[#262626] rounded-2xl h-24 relative overflow-hidden flex flex-col justify-end">
-                  <div className="bg-[#a78bfa] h-[40%] rounded-b-xl w-full"></div>
-                </div>
-                <span className="text-[11px] text-[#8d8d8d]">Jul</span>
-              </div>
-              <div className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full bg-[#262626] rounded-2xl h-32 relative overflow-hidden flex flex-col justify-end">
-                  <div className="bg-[#a78bfa] h-[35%] w-full"></div>
-                  <div className="bg-[#86efac] h-[45%] rounded-t-xl w-full"></div>
-                </div>
-                <span className="text-[11px] text-[#8d8d8d]">Aug</span>
-              </div>
-              <div className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full bg-[#262626] rounded-2xl h-36 relative overflow-hidden flex flex-col justify-end">
-                  <div className="bg-[#a78bfa] h-[40%] rounded-b-xl w-full"></div>
-                  <div className="bg-[#86efac] h-[55%] rounded-t-xl w-full"></div>
-                </div>
-                <span className="text-[11px] font-bold text-white">Sep</span>
-              </div>
-              <div className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full bg-[#262626] rounded-2xl h-28 relative overflow-hidden flex flex-col justify-end">
-                  <div className="bg-[#a78bfa] h-[30%] w-full"></div>
-                </div>
-                <span className="text-[11px] text-[#8d8d8d]">Oct</span>
-              </div>
-              <div className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full bg-[#262626] rounded-2xl h-44 relative overflow-hidden flex flex-col justify-end">
-                  <div className="bg-[#a78bfa] h-[35%] rounded-b-xl w-full"></div>
-                  <div className="bg-[#86efac] h-[60%] rounded-t-xl w-full"></div>
-                </div>
-                <span className="text-[11px] font-bold text-white">Nov</span>
-              </div>
-            </div>
+        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-soft-sm space-y-2">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase">
+            <span>Certificates Issued</span>
+            <Award className="w-4 h-4 text-amber-600" />
           </div>
-
-          {/* TOP RIGHT CARD: Recent Study Sessions & Recent Badges */}
-          <div className="bg-[#f0f4f8] text-[#161616] p-6 lg:p-8 rounded-3xl flex flex-col justify-between border border-[#e0e0e0]">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-[#161616] text-white flex items-center justify-center font-bold text-xs">
-                    ⚡
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-[#161616]">Recent Study Sessions</h3>
-                    <p className="text-xs text-[#525252]">Active learning activity</p>
-                  </div>
-                </div>
-                <div className="flex -space-x-2">
-                  <div className="w-7 h-7 rounded-full bg-[#0f62fe] text-white text-[10px] flex items-center justify-center font-bold">
-                    AI
-                  </div>
-                  <div className="w-7 h-7 rounded-full bg-[#198038] text-white text-[10px] flex items-center justify-center font-bold">
-                    JS
-                  </div>
-                  <div className="w-7 h-7 rounded-full bg-[#6929c4] text-white text-[10px] flex items-center justify-center font-bold">
-                    PY
-                  </div>
-                </div>
-              </div>
-
-              {/* Session Highlight Pill */}
-              <div className="bg-white border border-[#e0e0e0] p-4 rounded-2xl mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg">🎓</span>
-                  <div>
-                    <p className="text-xs font-semibold text-[#161616]">Artificial Intelligence Basics</p>
-                    <p className="text-[11px] text-[#525252]">12.53 hrs logged / 16 lessons</p>
-                  </div>
-                </div>
-                <span className="text-xs bg-[#defbe6] text-[#198038] px-2.5 py-1 rounded-full font-bold">
-                  Active
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[#e0e0e0]">
-              <div className="bg-white p-4 rounded-2xl border border-[#e0e0e0]">
-                <span className="text-xs text-[#525252]">Study Streak</span>
-                <p className="text-xl font-bold text-[#161616] mt-0.5">🔥 12 Days</p>
-              </div>
-              <div className="bg-white p-4 rounded-2xl border border-[#e0e0e0]">
-                <span className="text-xs text-[#525252]">Quiz Accuracy</span>
-                <p className="text-xl font-bold text-[#0f62fe] mt-0.5">🎯 94.2%</p>
-              </div>
-            </div>
-          </div>
-
-          {/* BOTTOM LEFT CARD: Overall Skill Mastery Gauge Meter */}
-          <div className="bg-[#dcfce7] border border-[#bbf7d0] text-[#161616] p-6 lg:p-8 rounded-3xl flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-[#161616]">Overall Skill Mastery</h3>
-              </div>
-
-              {/* Arc Gauge Meter SVG */}
-              <div className="relative flex flex-col items-center justify-center my-4">
-                <svg className="w-64 h-36" viewBox="0 0 200 110">
-                  <path
-                    d="M 20 100 A 80 80 0 0 1 180 100"
-                    fill="none"
-                    stroke="#161616"
-                    strokeWidth="22"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M 20 100 A 80 80 0 0 1 150 40"
-                    fill="none"
-                    stroke="#42be65"
-                    strokeWidth="22"
-                    strokeLinecap="round"
-                    strokeDasharray="4 2"
-                  />
-                  <circle cx="150" cy="40" r="5" fill="#161616" stroke="#ffffff" strokeWidth="2" />
-                </svg>
-
-                <div className="text-center mt-[-30px]">
-                  <span className="text-3xl font-bold text-[#161616]">{avgProgress}%</span>
-                  <p className="text-xs text-[#15803d] font-semibold">Mastery Benchmark Score</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-[#bbf7d0]">
-              <span className="text-xs font-semibold text-[#166534] bg-white px-3 py-1 rounded-full border border-[#bbf7d0]">
-                {avgProgress}% avg score (Target: 85%)
-              </span>
-              <span className="text-xs font-bold text-[#15803d]">On Track 🚀</span>
-            </div>
-          </div>
-
-          {/* BOTTOM RIGHT CARD: Skill Career Forecast & Timeline */}
-          <div className="bg-white border border-[#e0e0e0] p-6 lg:p-8 rounded-3xl flex flex-col justify-between">
-            <h3 className="text-lg font-semibold text-[#161616] mb-4">Market forecast</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-4 text-xs text-[#525252] border-l-2 border-[#e0e0e0] pl-4 my-auto">
-                <div className="relative">
-                  <div className="absolute -left-[21px] top-0 w-3 h-3 rounded-full bg-[#161616]"></div>
-                  <p className="font-bold text-[#161616]">2024</p>
-                  <p>Explosive growth of Gen AI</p>
-                </div>
-                <div className="relative">
-                  <div className="absolute -left-[21px] top-0 w-3 h-3 rounded-full bg-[#e0e0e0]"></div>
-                  <p className="font-bold text-[#161616]">2025</p>
-                  <p>Full-Stack Web Architect</p>
-                </div>
-                <div className="relative">
-                  <div className="absolute -left-[21px] top-0 w-3 h-3 rounded-full bg-[#e0e0e0]"></div>
-                  <p className="font-bold text-[#161616]">2026</p>
-                  <p>Cloud Security Leader</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="bg-[#bbf7d0] p-4 rounded-2xl space-y-2">
-                  <div className="flex justify-between items-center text-xs font-semibold text-[#166534]">
-                    <span>Skill score</span>
-                    <span>↗</span>
-                  </div>
-                  <p className="text-2xl font-bold text-[#161616]">21,105 pts</p>
-                  <div className="w-full bg-[#86efac] h-2 rounded-full overflow-hidden">
-                    <div className="bg-[#15803d] h-full w-[70%]"></div>
-                  </div>
-                </div>
-
-                <div className="bg-[#f3e8ff] p-4 rounded-2xl space-y-2">
-                  <div className="flex justify-between items-center text-xs font-semibold text-[#6b21a8]">
-                    <span>Market cap forecast</span>
-                    <span>↗</span>
-                  </div>
-                  <p className="text-2xl font-bold text-[#161616]">1.3trln$</p>
-                  <svg className="w-full h-8" viewBox="0 0 100 30">
-                    <path
-                      d="M 0 25 Q 30 20, 50 15 T 100 5"
-                      fill="none"
-                      stroke="#9333ea"
-                      strokeWidth="2.5"
-                    />
-                    <circle cx="75" cy="10" r="3" fill="#9333ea" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
+          <p className="text-3xl font-black text-slate-900">{issuedCertsCount}</p>
+          <p className="text-xs text-slate-500 font-medium">
+            Verified Digital Credentials
+          </p>
         </div>
       </div>
 
-      {/* My Courses Section with Payment Controls */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[#161616] font-semibold text-xl">My Enrolled Courses</h2>
-          <Link href="/courses" className="text-[#0f62fe] text-sm hover:underline font-medium">
-            Browse catalog
-          </Link>
-        </div>
+      {/* Main Content Split */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Left 2 Columns: Courses & Internships */}
+        <div className="lg:col-span-2 space-y-8">
+          
+          {/* Section 1: Enrolled Courses */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-slate-900 font-bold text-xl flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-blue-600" />
+                <span>Enrolled Courses & Progress</span>
+              </h2>
+              <Link href="/courses" className="text-blue-600 text-xs font-bold hover:underline">
+                View Catalog →
+              </Link>
+            </div>
 
-        {isLoading ? (
-          <div className="bg-white border border-[#e0e0e0] p-8 text-center text-sm text-[#525252] rounded-2xl">
-            Loading enrollments...
-          </div>
-        ) : enrollments.length === 0 ? (
-          <div className="bg-white border border-[#e0e0e0] p-8 text-center space-y-3 rounded-2xl">
-            <p className="text-sm text-[#525252]">You are not enrolled in any courses yet.</p>
-            <Link
-              href="/courses"
-              className="inline-block bg-[#0f62fe] text-white text-xs px-4 py-2.5 font-semibold hover:bg-[#0043ce] rounded-xl"
-            >
-              Explore Courses & Pay to Access
-            </Link>
-          </div>
-        ) : (
-          <div className="border border-[#e0e0e0] bg-white divide-y divide-[#e0e0e0] rounded-2xl overflow-hidden shadow-sm">
-            {enrollments.map((item) => {
-              const isPaid = item.paymentStatus === 'paid';
-              return (
-                <div key={item._id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-[#0f62fe] uppercase">{item.category}</span>
-                      {isPaid ? (
-                        <span className="text-[11px] bg-[#defbe6] text-[#198038] px-2.5 py-0.5 font-bold rounded-full">
-                          Paid & Unlocked ✓
-                        </span>
-                      ) : (
-                        <span className="text-[11px] bg-[#fff0f1] text-[#da1e28] px-2.5 py-0.5 font-bold rounded-full">
-                          Payment Pending (₹1,999)
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="text-base font-semibold text-[#161616]">{item.courseTitle}</h3>
-                  </div>
-
-                  <div className="flex items-center gap-6 md:w-96 justify-end">
-                    {isPaid ? (
-                      <>
-                        <div className="flex-1 hidden sm:block">
-                          <div className="w-full bg-[#e0e0e0] h-2 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full ${item.progressPercentage === 100 ? 'bg-[#198038]' : 'bg-[#0f62fe]'}`}
-                              style={{ width: `${item.progressPercentage}%` }}
-                            />
+            {isLoading ? (
+              <div className="bg-white border border-slate-200 p-8 text-center text-sm text-slate-500 rounded-2xl">
+                Loading courses from database...
+              </div>
+            ) : courseEnrollments.length === 0 ? (
+              <div className="bg-white border border-slate-200 p-8 text-center space-y-3 rounded-2xl">
+                <p className="text-sm text-slate-600">You are not enrolled in any courses yet.</p>
+                <Link href="/courses">
+                  <Button variant="glow" size="sm">Explore & Enroll</Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {courseEnrollments.map((item) => {
+                  const isPaid = item.paymentStatus === 'paid';
+                  return (
+                    <div
+                      key={item._id}
+                      className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-soft-sm hover:border-slate-300 transition-all"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                              {item.category}
+                            </span>
+                            {isPaid ? (
+                              <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 font-bold rounded border border-emerald-200">
+                                Paid & Unlocked ✓
+                              </span>
+                            ) : (
+                              <span className="text-[10px] bg-rose-50 text-rose-700 px-2 py-0.5 font-bold rounded border border-rose-200">
+                                Payment Pending (₹1,999)
+                              </span>
+                            )}
                           </div>
-                          <span className="text-xs text-[#525252] font-medium mt-1 block text-right">
-                            {item.progressPercentage}% Complete
-                          </span>
+                          <h3 className="text-base font-bold text-slate-900 mt-1">{item.courseTitle}</h3>
                         </div>
 
-                        {item.certificateStatus?.certificateId ? (
-                          <Link
-                            href={`/certificate/${item.certificateStatus.certificateId}`}
-                            className="bg-[#198038] text-white text-xs px-4 py-2.5 font-medium hover:bg-[#0e6027] shrink-0 rounded-xl"
-                          >
-                            View Cert
-                          </Link>
-                        ) : (
-                          <Link
-                            href={`/learn/${item.courseId}/mod1-lesson1`}
-                            className="bg-[#0f62fe] text-white text-xs px-4 py-2.5 font-semibold hover:bg-[#0043ce] shrink-0 rounded-xl flex items-center gap-1.5"
-                          >
-                            <span>Enter Course</span>
-                            <span>→</span>
-                          </Link>
-                        )}
-                      </>
-                    ) : (
-                      <button
-                        onClick={() =>
-                          setCheckoutCourse({
-                            courseId: item.courseId,
-                            courseTitle: item.courseTitle,
-                            originalPrice: 1999,
-                          })
-                        }
-                        className="bg-[#198038] text-white text-xs px-5 py-2.5 font-semibold hover:bg-[#0e6027] shrink-0 rounded-xl shadow-sm flex items-center gap-1.5"
-                      >
-                        <span>💳 Pay ₹1,999 for Course</span>
-                        <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded">Coupon SKY90</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                        {/* Action buttons */}
+                        <div>
+                          {isPaid ? (
+                            <Link href={`/learn/${item.courseId}/mod1-lesson1`}>
+                              <Button variant="glow" size="sm">
+                                <span>Continue Learning</span>
+                                <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                              </Button>
+                            </Link>
+                          ) : (
+                            <Button
+                              onClick={() =>
+                                setCheckoutCourse({
+                                  courseId: item.courseId,
+                                  courseTitle: item.courseTitle,
+                                  originalPrice: 1999,
+                                })
+                              }
+                              variant="glow"
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                            >
+                              💳 Pay ₹1,999 to Unlock (Coupon Code)
+                            </Button>
+                          )}
+                        </div>
+                      </div>
 
-      {/* Course Tasks Section */}
-      <div className="space-y-4">
-        <h2 className="text-[#161616] font-semibold text-xl">Assigned Tasks & Checklist</h2>
-        {tasks.length === 0 ? (
-          <div className="bg-white border border-[#e0e0e0] p-6 text-sm text-[#525252] rounded-2xl">
-            No pending tasks. Enroll in a course to get started!
-          </div>
-        ) : (
-          <div className="bg-white border border-[#e0e0e0] divide-y divide-[#e0e0e0] rounded-2xl overflow-hidden">
-            {tasks.map((task) => (
-              <div key={task._id} className="p-4 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={task.status === 'completed'}
-                    onChange={() => toggleTask(task._id)}
-                    className="w-4 h-4 text-[#0f62fe] border-[#e0e0e0] focus:ring-0 cursor-pointer"
-                  />
-                  <div>
-                    <p
-                      className={`text-sm ${
-                        task.status === 'completed' ? 'line-through text-[#8d8d8d]' : 'text-[#161616] font-medium'
-                      }`}
-                    >
-                      {task.title}
-                    </p>
-                    <p className="text-xs text-[#525252]">{task.courseTitle}</p>
-                  </div>
-                </div>
-                <span className="text-xs text-[#525252]">
-                  Due: {new Date(task.dueDate).toLocaleDateString()}
-                </span>
+                      {/* Course Breakdown Metrics */}
+                      <div className="bg-slate-50 p-4 rounded-xl space-y-2 border border-slate-100">
+                        <div className="flex justify-between items-center text-xs font-semibold text-slate-700">
+                          <span>Progress: {item.progressPercentage}%</span>
+                          <span>Completed: {item.completedLessonsCount} / {item.totalLessons} lessons ({item.remainingLessonsCount} remaining)</span>
+                        </div>
+                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                          <div
+                            className="bg-blue-600 h-full transition-all duration-300"
+                            style={{ width: `${item.progressPercentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+            )}
           </div>
-        )}
+
+          {/* Section 2: Internship Enrollments & Tasks */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-slate-900 font-bold text-xl flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-purple-600" />
+                <span>Internship Programs & Task Submissions</span>
+              </h2>
+              <Link href="/internships" className="text-purple-600 text-xs font-bold hover:underline">
+                View Opportunities →
+              </Link>
+            </div>
+
+            {internshipEnrollments.length === 0 ? (
+              <div className="bg-white border border-slate-200 p-8 text-center space-y-3 rounded-2xl">
+                <p className="text-sm text-slate-600">You are not participating in any internship programs.</p>
+                <Link href="/internships">
+                  <Button variant="secondary" size="sm">Explore Free Internships</Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {internshipEnrollments.map((item) => (
+                  <div key={item._id} className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-soft-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded border border-purple-200">
+                            {item.organization}
+                          </span>
+                          {item.validationStatus === 'paid' ? (
+                            <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 font-bold rounded border border-emerald-200">
+                              Validation Active ✓
+                            </span>
+                          ) : (
+                            <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 font-bold rounded border border-amber-200">
+                              Validation Pending (₹{item.validationFee})
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-base font-bold text-slate-900 mt-1">{item.title}</h3>
+                      </div>
+
+                      <Link href={`/internships/${item.internshipId}`}>
+                        <Button variant="secondary" size="sm">Program Details</Button>
+                      </Link>
+                    </div>
+
+                    {/* Task list for this internship */}
+                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                      <h4 className="text-xs font-bold text-slate-500 uppercase">Assigned Tasks</h4>
+                      {item.taskProgress?.length === 0 ? (
+                        <p className="text-xs text-slate-400">No tasks assigned yet.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {item.taskProgress?.map((tp) => (
+                            <div key={tp.taskId} className="bg-slate-50 p-3 rounded-xl flex items-center justify-between text-xs">
+                              <div className="font-semibold text-slate-800">Task ID: {tp.taskId}</div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-700 bg-white px-2 py-1 rounded border border-slate-200">
+                                  Status: {tp.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        {/* Right 1 Column: Task Checklist & System Notifications */}
+        <div className="space-y-8">
+          
+          {/* Tasks & Assignments Checklist */}
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl space-y-4 shadow-soft-sm">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-600" />
+              <span>Assigned Tasks Checklist</span>
+            </h3>
+
+            {tasks.length === 0 ? (
+              <p className="text-xs text-slate-500 py-4 text-center">No pending tasks or deadlines.</p>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {tasks.map((task) => (
+                  <div key={task._id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        checked={task.status === 'completed' || task.status === 'submitted'}
+                        onChange={() => toggleTask(task._id)}
+                        className="mt-0.5 rounded text-blue-600 cursor-pointer"
+                      />
+                      <div className="flex-1 space-y-1">
+                        <p className={`text-xs font-bold ${task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                          {task.title}
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          Due: {new Date(task.dueDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setSelectedTaskForSubmission(task)}
+                      className="w-full text-center py-1 text-[11px] font-bold text-blue-600 hover:bg-blue-50 rounded transition-colors border border-blue-200"
+                    >
+                      Submit Task Work →
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Real-Time Notifications */}
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl space-y-4 shadow-soft-sm">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Bell className="w-4 h-4 text-blue-600" />
+              <span>Notifications & Alerts</span>
+            </h3>
+
+            {notifications.length === 0 ? (
+              <p className="text-xs text-slate-500 py-4 text-center">No system notifications yet.</p>
+            ) : (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {notifications.map((n) => (
+                  <div key={n._id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-900">
+                      <span>{n.title}</span>
+                      <span className="text-[10px] text-slate-400">{new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <p className="text-xs text-slate-600">{n.message}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
+
       </div>
 
-      {/* Payment Checkout Modal */}
+      {/* Task Submission Modal */}
+      {selectedTaskForSubmission && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 p-6 rounded-2xl max-w-lg w-full space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-900">Submit Work for Task</h3>
+              <button onClick={() => setSelectedTaskForSubmission(null)} className="text-slate-400 font-bold">✕</button>
+            </div>
+            <p className="text-xs text-slate-600 font-semibold">{selectedTaskForSubmission.title}</p>
+            <form onSubmit={handleTaskSubmit} className="space-y-4">
+              <textarea
+                value={submissionText}
+                onChange={(e) => setSubmissionText(e.target.value)}
+                placeholder="Paste your GitHub repository link, live demo URL, or summary of completed work..."
+                rows={5}
+                required
+                className="w-full border border-slate-300 rounded-xl p-3 text-xs focus:outline-none focus:border-blue-600"
+              />
+              <Button type="submit" disabled={isSubmittingTask} variant="glow" size="md" className="w-full">
+                <Send className="w-4 h-4 mr-2" />
+                <span>{isSubmittingTask ? 'Submitting Work...' : 'Submit Task for Review'}</span>
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Course Checkout Modal */}
       {checkoutCourse && (
         <CourseCheckoutModal
           isOpen={!!checkoutCourse}

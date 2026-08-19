@@ -1,111 +1,117 @@
 'use client';
 
-import React from 'react';
-import { User, Award, BookOpen, Briefcase, Github, Linkedin, ExternalLink, MapPin, GraduationCap, Code } from 'lucide-react';
-import { MOCK_CREDENTIALS } from '@/lib/supabase/mock-data';
-import { Button } from '@/components/ui/Button';
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { Award, GraduationCap, MapPin, CheckCircle2, Shield } from 'lucide-react';
+import Link from 'next/link';
 
 export default function StudentProfilePage() {
-  const skills = [
-    { name: 'Python Programming', level: 80 },
-    { name: 'SQL & Data Modeling', level: 65 },
-    { name: 'Machine Learning Basics', level: 50 },
-    { name: 'React & Next.js', level: 75 },
-    { name: 'Communication & Technical Writing', level: 85 },
-  ];
+  const { user } = useAuth();
+  const [certificates, setCertificates] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProfileData() {
+      try {
+        const res = await fetch('/api/dashboard');
+        const data = await res.json();
+        if (data.certificates) setCertificates(data.certificates);
+      } catch (err) {
+        console.error('Failed to load profile data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    if (user) {
+      loadProfileData();
+    }
+  }, [user]);
+
+  const initials = user?.name
+    ? user.name.split(' ').map((n) => n[0]).join('').toUpperCase()
+    : 'ST';
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
-      
+    <div className="max-w-5xl mx-auto space-y-8 font-sans">
       {/* Profile Header Box */}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-soft-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-center gap-5">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-3xl font-black shadow-soft-md">
-            AJ
+          <div className="w-20 h-20 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-3xl font-black shadow-soft-md shrink-0">
+            {initials}
           </div>
           <div className="space-y-1">
-            <h1 className="text-2xl font-black text-slate-900">Alex Johnson</h1>
-            <p className="text-sm font-semibold text-blue-600">Computer Science Undergraduate • AI Aspirant</p>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1 font-medium">
-              <span className="flex items-center gap-1">
-                <GraduationCap className="w-3.5 h-3.5 text-slate-400" />
-                State Institute of Technology (Class of 2026)
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-black text-slate-900">{user?.name || 'Student Learner'}</h1>
+              <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded border border-emerald-200">
+                Verified Account
               </span>
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                California, USA
+            </div>
+            <p className="text-sm font-semibold text-blue-600">{user?.email}</p>
+            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1 font-medium">
+              <span className="flex items-center gap-1 font-mono">
+                <Shield className="w-3.5 h-3.5 text-slate-400" />
+                Student User ID: {user?.id}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <a href="https://github.com" target="_blank" rel="noreferrer">
-            <Button variant="secondary" size="sm">
-              <Github className="w-4 h-4" />
-              <span>GitHub</span>
-            </Button>
-          </a>
-          <a href="https://linkedin.com" target="_blank" rel="noreferrer">
-            <Button variant="secondary" size="sm">
-              <Linkedin className="w-4 h-4" />
-              <span>LinkedIn</span>
-            </Button>
-          </a>
-        </div>
+        <Link href="/dashboard">
+          <button className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs px-4 py-2.5 font-bold rounded-xl transition-colors">
+            Return to Dashboard
+          </button>
+        </Link>
       </div>
 
-      {/* Main Grid: Skill Meters & Verified Credentials */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* Skill Proficiency Meters */}
-        <div className="lg:col-span-2 p-8 rounded-2xl bg-white border border-slate-200 shadow-soft-sm space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 uppercase tracking-wider">Skill Proficiency Meters</h2>
-            <span className="text-xs text-slate-400 font-medium">Updated from course assessments</span>
-          </div>
-
-          <div className="space-y-5">
-            {skills.map((skill, idx) => (
-              <div key={idx} className="space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-800">
-                  <span>{skill.name}</span>
-                  <span className="text-blue-600 font-mono">{skill.level}%</span>
-                </div>
-                <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                  <div
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${skill.level}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+        {/* Account Metadata */}
+        <div className="p-8 rounded-2xl bg-white border border-slate-200 shadow-soft-sm space-y-4">
+          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Account Specifications</h2>
+          <div className="space-y-3 text-xs">
+            <div className="flex justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <span className="text-slate-500 font-semibold">User Role:</span>
+              <span className="font-bold text-slate-900 uppercase">{user?.role || 'student'}</span>
+            </div>
+            <div className="flex justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <span className="text-slate-500 font-semibold">Security Authentication:</span>
+              <span className="font-bold text-emerald-700 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Password Hashed (bcrypt)
+              </span>
+            </div>
+            <div className="flex justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <span className="text-slate-500 font-semibold">Session Status:</span>
+              <span className="font-bold text-blue-600">Active HTTP Session Cookie</span>
+            </div>
           </div>
         </div>
 
         {/* Credentials Column */}
-        <div className="p-8 rounded-2xl bg-white border border-slate-200 shadow-soft-sm space-y-6">
-          <h2 className="text-base font-bold text-slate-900 uppercase tracking-wider">Verified Credentials</h2>
+        <div className="p-8 rounded-2xl bg-white border border-slate-200 shadow-soft-sm space-y-4">
+          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Earned Credentials</h2>
 
-          <div className="space-y-4">
-            {MOCK_CREDENTIALS.map((cred) => (
-              <div key={cred.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <h3 className="text-xs font-bold text-slate-900 truncate">{cred.title}</h3>
+          {isLoading ? (
+            <p className="text-xs text-slate-500 py-4">Loading credentials...</p>
+          ) : certificates.length === 0 ? (
+            <p className="text-xs text-slate-500 py-4">No certificates earned yet. Complete courses and pass assessments to earn credentials!</p>
+          ) : (
+            <div className="space-y-3">
+              {certificates.map((cred) => (
+                <div key={cred._id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-slate-900">{cred.courseTitle}</h3>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Verified ✓</span>
+                  </div>
+                  <p className="text-[11px] font-mono text-purple-700">{cred.certificateId}</p>
+                  <p className="text-[10px] text-slate-500">Issued: {new Date(cred.issueDate).toLocaleDateString()}</p>
                 </div>
-                <span className="text-[11px] font-mono text-slate-500 block">{cred.credential_id}</span>
-                <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Issued: {cred.issue_date}</span>
-                  <span className="font-bold text-blue-600">Verified ✓</span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
       </div>
-
     </div>
   );
 }
