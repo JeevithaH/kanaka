@@ -44,12 +44,20 @@ export default function LoginPage() {
                   <h1 className="text-[#161616] font-light text-[2rem] lg:text-[2.625rem] leading-tight mb-4">
                     Log in to Skyrellac
                   </h1>
-                  <p className="text-[#525252] text-sm mb-10">
-                    Don&apos;t have an account with Skyrellac?{' '}
-                    <Link href="/register" className="text-[#0f62fe] hover:underline">
+                  
+                  {/* Prominent Sign Up Banner for new users */}
+                  <div className="bg-[#f4f4f4] border border-[#e0e0e0] p-4 mb-8 max-w-sm flex items-center justify-between">
+                    <div>
+                      <p className="text-[#161616] text-xs font-semibold">New to Skyrellac?</p>
+                      <p className="text-[#525252] text-xs">Create an account to enroll in courses.</p>
+                    </div>
+                    <Link
+                      href="/signup"
+                      className="bg-[#0f62fe] text-white text-xs px-3.5 py-2 font-medium hover:bg-[#0043ce] transition-colors shrink-0"
+                    >
                       Sign up
                     </Link>
-                  </p>
+                  </div>
 
                   <div className="flex flex-col gap-4 max-w-sm">
                     {['College or university', 'Adult learning', 'High school'].map((audience) => (

@@ -97,13 +97,17 @@ export default function SignInPage() {
                 </button>
               </form>
 
-              <div className="mt-8">
-                <p className="text-[#525252] text-sm">
-                  Don&apos;t have an account?{' '}
-                  <Link href="/register" className="text-[#0f62fe] hover:underline">
-                    Sign up
-                  </Link>
-                </p>
+              <div className="mt-8 max-w-sm p-4 bg-[#f4f4f4] border border-[#e0e0e0] flex items-center justify-between">
+                <div>
+                  <p className="text-[#161616] text-xs font-semibold">Don&apos;t have an account?</p>
+                  <p className="text-[#525252] text-xs">Create your free Skyrellac account today.</p>
+                </div>
+                <Link
+                  href="/signup"
+                  className="bg-[#0f62fe] text-white text-xs px-3.5 py-2 font-medium hover:bg-[#0043ce] transition-colors shrink-0"
+                >
+                  Sign up
+                </Link>
               </div>
             </div>
 

@@ -100,7 +100,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                 <p className="text-3xl font-black text-white">₹{course.price_inr ?? 200}</p>
               </div>
 
-              <Link href={`/signup?redirect=${encodeURIComponent(`/courses/${course.slug}`)}`}>
+              <Link href={`/login?redirect=${encodeURIComponent(`/courses/${course.slug}`)}`}>
                 <Button variant="glow" size="lg" className="w-full text-center font-bold">
                   <span>Enroll Now & Start</span>
                   <ArrowRight className="w-5 h-5" />
