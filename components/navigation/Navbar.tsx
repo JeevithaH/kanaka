@@ -18,9 +18,9 @@ export function Navbar() {
   const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleSignOut = (e: React.MouseEvent) => {
+  const handleSignOut = async (e: React.MouseEvent) => {
     e.preventDefault();
-    logout();
+    await logout();
   };
 
   return (
@@ -77,7 +77,8 @@ export function Navbar() {
               </Link>
               <button
                 onClick={handleSignOut}
-                className="bg-[#da1e28] text-white px-3.5 py-1.5 text-xs font-semibold hover:bg-[#b81922] transition-colors"
+                type="button"
+                className="bg-[#da1e28] text-white px-3.5 py-1.5 text-xs font-semibold hover:bg-[#b81922] transition-colors cursor-pointer"
               >
                 Sign out
               </button>
@@ -143,11 +144,12 @@ export function Navbar() {
                       Go to Dashboard
                     </Link>
                     <button
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         setMobileMenuOpen(false);
-                        handleSignOut(e);
+                        await handleSignOut(e);
                       }}
-                      className="text-sm text-[#da1e28] text-left font-semibold"
+                      type="button"
+                      className="text-sm text-[#da1e28] text-left font-semibold cursor-pointer"
                     >
                       Sign out
                     </button>

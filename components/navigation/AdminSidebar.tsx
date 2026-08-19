@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/components/auth/AuthProvider';
 import {
   LayoutDashboard,
   BookOpen,
@@ -11,20 +12,23 @@ import {
   Compass,
   Tags,
   FileCheck,
-  HelpCircle,
   Briefcase,
   UserCheck,
   Users,
-  ShieldAlert,
   Award,
   BarChart3,
-  Settings,
   LogOut,
   Shield,
 } from 'lucide-react';
 
 export const AdminSidebar: React.FC = () => {
   const pathname = usePathname();
+  const { logout } = useAuth();
+
+  const handleSignOut = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    await logout();
+  };
 
   const sections = [
     {
@@ -67,7 +71,7 @@ export const AdminSidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="w-64 min-h-screen bg-surface border-r border-border/80 flex flex-col justify-between p-4 sticky top-0">
+    <aside className="w-64 min-h-screen bg-surface border-r border-border/80 flex flex-col justify-between p-4 sticky top-0 font-sans">
       <div className="space-y-6">
         {/* Brand Admin Header */}
         <Link href="/admin" className="flex items-center gap-2.5 px-2 py-2">
@@ -114,13 +118,14 @@ export const AdminSidebar: React.FC = () => {
 
       {/* Sign Out */}
       <div className="pt-4 border-t border-border/60">
-        <Link
-          href="/login"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors"
+        <button
+          onClick={handleSignOut}
+          type="button"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors text-left cursor-pointer"
         >
           <LogOut className="w-4 h-4" />
-          <span>Exit Admin</span>
-        </Link>
+          <span>Sign Out</span>
+        </button>
       </div>
     </aside>
   );

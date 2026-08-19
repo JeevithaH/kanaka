@@ -1,4 +1,5 @@
 'use client';
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 interface User {
@@ -12,7 +13,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshUser: () => void;
   isAuthenticated: boolean;
 }
@@ -24,12 +25,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshUser = useCallback(() => {
+    if (typeof document === 'undefined') return;
     const session = document.cookie.split('; ').find(row => row.startsWith('skyrellac_session='));
     if (session) {
       try {
         const userData = JSON.parse(decodeURIComponent(session.split('=')[1]));
         setUser(userData);
-      } catch { setUser(null); }
+      } catch {
+        setUser(null);
+      }
     } else {
       setUser(null);
     }
@@ -51,7 +55,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) {
         return { success: false, error: data.error || 'Login failed.' };
       }
-      // Cookie is set by the server response. Refresh from cookie.
       refreshUser();
       return { success: true };
     } catch {
@@ -61,11 +64,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch { /* ignore */ }
-    document.cookie = 'skyrellac_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      await fetch('/api/auth/logout', { method: 'POST', cache: 'no-store' });
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+
+    // Comprehensive client-side cookie removal
+    document.cookie = 'skyrellac_session=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax;';
+    document.cookie = 'skyrellac_session=; max-age=0; path=/; SameSite=Lax;';
+    document.cookie = 'skyrellac_session=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;';
+    document.cookie = 'skyrellac_session=; max-age=0; path=/;';
+
     setUser(null);
-    window.location.href = '/';
+
+    // Hard redirect to home page
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
   }, []);
 
   return (
