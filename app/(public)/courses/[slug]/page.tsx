@@ -96,11 +96,11 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
             {/* Quick Action Box */}
             <div className="glass-card p-6 rounded-2xl border border-slate-700 bg-slate-800/90 text-white space-y-5 shadow-soft-xl">
               <div className="space-y-1">
-                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Free Enrollment</span>
-                <p className="text-2xl font-black text-white">Included in Skyrellac</p>
+                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Course Enrollment Fee</span>
+                <p className="text-3xl font-black text-white">₹{course.price_inr ?? 200}</p>
               </div>
 
-              <Link href={`/learn/${course.slug}/lesson-1`}>
+              <Link href={`/signup?redirect=${encodeURIComponent(`/courses/${course.slug}`)}`}>
                 <Button variant="glow" size="lg" className="w-full text-center font-bold">
                   <span>Enroll Now & Start</span>
                   <ArrowRight className="w-5 h-5" />
