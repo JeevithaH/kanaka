@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #161616;
+  }
+
+  body {
+    @apply bg-background text-text-primary font-sans antialiased min-h-screen flex flex-col;
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f4f4f4;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8d8d8d;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #525252;
+}
