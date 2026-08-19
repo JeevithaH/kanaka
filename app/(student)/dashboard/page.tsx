@@ -3,12 +3,15 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { CourseCheckoutModal } from '@/components/payments/CourseCheckoutModal';
 
 interface EnrollmentData {
   _id: string;
   courseId: string;
   courseTitle: string;
   category: string;
+  paymentStatus?: 'pending' | 'paid';
+  amountPaid?: number;
   progressPercentage: number;
   status: string;
   certificateStatus: {
@@ -33,6 +36,13 @@ export default function StudentDashboardPage() {
   const [tasks, setTasks] = useState<TaskData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [timeframe, setTimeframe] = useState<'Weekly' | 'Monthly'>('Monthly');
+
+  // Checkout modal state
+  const [checkoutCourse, setCheckoutCourse] = useState<{
+    courseId: string;
+    courseTitle: string;
+    originalPrice: number;
+  } | null>(null);
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -76,13 +86,18 @@ export default function StudentDashboardPage() {
     }
   };
 
-  const completedCount = enrollments.filter((e) => e.progressPercentage === 100).length;
-  const inProgressCount = enrollments.length - completedCount;
+  const handlePaymentSuccess = (updatedEnrollment: any) => {
+    setEnrollments((prev) =>
+      prev.map((e) => (e.courseId === updatedEnrollment.courseId ? { ...e, ...updatedEnrollment, paymentStatus: 'paid' } : e))
+    );
+  };
 
-  // Calculate average overall progress percentage across all courses
+  const completedCount = enrollments.filter((e) => e.progressPercentage === 100 && e.paymentStatus === 'paid').length;
+  const paidEnrollmentsCount = enrollments.filter((e) => e.paymentStatus === 'paid').length;
+
   const avgProgress = enrollments.length > 0
     ? Math.round(enrollments.reduce((acc, curr) => acc + curr.progressPercentage, 0) / enrollments.length)
-    : 45; // default benchmark for display visual
+    : 45;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 p-4 lg:p-8 font-sans">
@@ -94,7 +109,7 @@ export default function StudentDashboardPage() {
             Welcome back, {user?.name || 'Learner'}
           </h1>
           <p className="text-[#525252] text-sm mt-1">
-            Track your real-time learning statistics, course mastery, and verified certificates.
+            Track your real-time learning statistics, course payments, and verified certificates.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -114,8 +129,8 @@ export default function StudentDashboardPage() {
           <p className="text-3xl font-light text-[#161616]">{enrollments.length}</p>
         </div>
         <div className="bg-white border border-[#e0e0e0] p-6 rounded-2xl">
-          <p className="text-xs text-[#525252] uppercase tracking-wider font-semibold mb-1">Active Learning Paths</p>
-          <p className="text-3xl font-light text-[#0f62fe]">{inProgressCount}</p>
+          <p className="text-xs text-[#525252] uppercase tracking-wider font-semibold mb-1">Paid & Unlocked Courses</p>
+          <p className="text-3xl font-light text-[#0f62fe]">{paidEnrollmentsCount}</p>
         </div>
         <div className="bg-white border border-[#e0e0e0] p-6 rounded-2xl">
           <p className="text-xs text-[#525252] uppercase tracking-wider font-semibold mb-1">Certificates Earned</p>
@@ -247,20 +262,11 @@ export default function StudentDashboardPage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-[#161616]">Overall Skill Mastery</h3>
-                <div className="flex items-center gap-2">
-                  <button className="w-7 h-7 rounded-full bg-white border border-[#bbf7d0] text-xs font-bold text-[#161616] hover:bg-[#bbf7d0]">
-                    ←
-                  </button>
-                  <button className="w-7 h-7 rounded-full bg-white border border-[#bbf7d0] text-xs font-bold text-[#161616] hover:bg-[#bbf7d0]">
-                    →
-                  </button>
-                </div>
               </div>
 
               {/* Arc Gauge Meter SVG */}
               <div className="relative flex flex-col items-center justify-center my-4">
                 <svg className="w-64 h-36" viewBox="0 0 200 110">
-                  {/* Gauge Outer Track */}
                   <path
                     d="M 20 100 A 80 80 0 0 1 180 100"
                     fill="none"
@@ -268,7 +274,6 @@ export default function StudentDashboardPage() {
                     strokeWidth="22"
                     strokeLinecap="round"
                   />
-                  {/* Gauge Active Progress Fill Arc */}
                   <path
                     d="M 20 100 A 80 80 0 0 1 150 40"
                     fill="none"
@@ -277,11 +282,9 @@ export default function StudentDashboardPage() {
                     strokeLinecap="round"
                     strokeDasharray="4 2"
                   />
-                  {/* Gauge Pointer Dot */}
                   <circle cx="150" cy="40" r="5" fill="#161616" stroke="#ffffff" strokeWidth="2" />
                 </svg>
 
-                {/* Center Value */}
                 <div className="text-center mt-[-30px]">
                   <span className="text-3xl font-bold text-[#161616]">{avgProgress}%</span>
                   <p className="text-xs text-[#15803d] font-semibold">Mastery Benchmark Score</p>
@@ -302,7 +305,6 @@ export default function StudentDashboardPage() {
             <h3 className="text-lg font-semibold text-[#161616] mb-4">Market forecast</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Timeline list */}
               <div className="space-y-4 text-xs text-[#525252] border-l-2 border-[#e0e0e0] pl-4 my-auto">
                 <div className="relative">
                   <div className="absolute -left-[21px] top-0 w-3 h-3 rounded-full bg-[#161616]"></div>
@@ -321,9 +323,7 @@ export default function StudentDashboardPage() {
                 </div>
               </div>
 
-              {/* Mini forecast cards */}
               <div className="space-y-3">
-                {/* Green Card */}
                 <div className="bg-[#bbf7d0] p-4 rounded-2xl space-y-2">
                   <div className="flex justify-between items-center text-xs font-semibold text-[#166534]">
                     <span>Skill score</span>
@@ -335,15 +335,12 @@ export default function StudentDashboardPage() {
                   </div>
                 </div>
 
-                {/* Purple Card */}
                 <div className="bg-[#f3e8ff] p-4 rounded-2xl space-y-2">
                   <div className="flex justify-between items-center text-xs font-semibold text-[#6b21a8]">
                     <span>Market cap forecast</span>
                     <span>↗</span>
                   </div>
                   <p className="text-2xl font-bold text-[#161616]">1.3trln$</p>
-
-                  {/* Bezier Line Graph SVG */}
                   <svg className="w-full h-8" viewBox="0 0 100 30">
                     <path
                       d="M 0 25 Q 30 20, 50 15 T 100 5"
@@ -360,7 +357,7 @@ export default function StudentDashboardPage() {
         </div>
       </div>
 
-      {/* My Courses Section */}
+      {/* My Courses Section with Payment Controls */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-[#161616] font-semibold text-xl">My Enrolled Courses</h2>
@@ -380,56 +377,82 @@ export default function StudentDashboardPage() {
               href="/courses"
               className="inline-block bg-[#0f62fe] text-white text-xs px-4 py-2.5 font-semibold hover:bg-[#0043ce] rounded-xl"
             >
-              Explore & Enroll for ₹199
+              Explore Courses & Pay to Access
             </Link>
           </div>
         ) : (
-          <div className="border border-[#e0e0e0] bg-white divide-y divide-[#e0e0e0] rounded-2xl overflow-hidden">
-            {enrollments.map((item) => (
-              <div key={item._id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-[#0f62fe] uppercase">{item.category}</span>
-                    {item.progressPercentage === 100 && (
-                      <span className="text-[11px] bg-[#defbe6] text-[#198038] px-2 py-0.5 font-bold rounded-full">
-                        Completed
-                      </span>
+          <div className="border border-[#e0e0e0] bg-white divide-y divide-[#e0e0e0] rounded-2xl overflow-hidden shadow-sm">
+            {enrollments.map((item) => {
+              const isPaid = item.paymentStatus === 'paid';
+              return (
+                <div key={item._id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-[#0f62fe] uppercase">{item.category}</span>
+                      {isPaid ? (
+                        <span className="text-[11px] bg-[#defbe6] text-[#198038] px-2.5 py-0.5 font-bold rounded-full">
+                          Paid & Unlocked ✓
+                        </span>
+                      ) : (
+                        <span className="text-[11px] bg-[#fff0f1] text-[#da1e28] px-2.5 py-0.5 font-bold rounded-full">
+                          Payment Pending (₹1,999)
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-base font-semibold text-[#161616]">{item.courseTitle}</h3>
+                  </div>
+
+                  <div className="flex items-center gap-6 md:w-96 justify-end">
+                    {isPaid ? (
+                      <>
+                        <div className="flex-1 hidden sm:block">
+                          <div className="w-full bg-[#e0e0e0] h-2 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${item.progressPercentage === 100 ? 'bg-[#198038]' : 'bg-[#0f62fe]'}`}
+                              style={{ width: `${item.progressPercentage}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-[#525252] font-medium mt-1 block text-right">
+                            {item.progressPercentage}% Complete
+                          </span>
+                        </div>
+
+                        {item.certificateStatus?.certificateId ? (
+                          <Link
+                            href={`/certificate/${item.certificateStatus.certificateId}`}
+                            className="bg-[#198038] text-white text-xs px-4 py-2.5 font-medium hover:bg-[#0e6027] shrink-0 rounded-xl"
+                          >
+                            View Cert
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/learn/${item.courseId}/mod1-lesson1`}
+                            className="bg-[#0f62fe] text-white text-xs px-4 py-2.5 font-semibold hover:bg-[#0043ce] shrink-0 rounded-xl flex items-center gap-1.5"
+                          >
+                            <span>Enter Course</span>
+                            <span>→</span>
+                          </Link>
+                        )}
+                      </>
+                    ) : (
+                      <button
+                        onClick={() =>
+                          setCheckoutCourse({
+                            courseId: item.courseId,
+                            courseTitle: item.courseTitle,
+                            originalPrice: 1999,
+                          })
+                        }
+                        className="bg-[#198038] text-white text-xs px-5 py-2.5 font-semibold hover:bg-[#0e6027] shrink-0 rounded-xl shadow-sm flex items-center gap-1.5"
+                      >
+                        <span>💳 Pay ₹1,999 for Course</span>
+                        <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded">Coupon SKY90</span>
+                      </button>
                     )}
                   </div>
-                  <h3 className="text-base font-semibold text-[#161616]">{item.courseTitle}</h3>
                 </div>
-
-                <div className="flex items-center gap-6 md:w-80">
-                  <div className="flex-1">
-                    <div className="w-full bg-[#e0e0e0] h-2 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${item.progressPercentage === 100 ? 'bg-[#198038]' : 'bg-[#0f62fe]'}`}
-                        style={{ width: `${item.progressPercentage}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-[#525252] font-medium mt-1 block text-right">
-                      {item.progressPercentage}% Complete
-                    </span>
-                  </div>
-
-                  {item.certificateStatus?.certificateId ? (
-                    <Link
-                      href={`/certificate/${item.certificateStatus.certificateId}`}
-                      className="bg-[#198038] text-white text-xs px-3.5 py-2 font-medium hover:bg-[#0e6027] shrink-0 rounded-lg"
-                    >
-                      View Cert
-                    </Link>
-                  ) : (
-                    <Link
-                      href={`/learn/${item.courseId}/mod1-lesson1`}
-                      className="bg-[#0f62fe] text-white text-xs px-3.5 py-2 font-medium hover:bg-[#0043ce] shrink-0 rounded-lg"
-                    >
-                      Continue
-                    </Link>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -471,6 +494,18 @@ export default function StudentDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Payment Checkout Modal */}
+      {checkoutCourse && (
+        <CourseCheckoutModal
+          isOpen={!!checkoutCourse}
+          onClose={() => setCheckoutCourse(null)}
+          courseId={checkoutCourse.courseId}
+          courseTitle={checkoutCourse.courseTitle}
+          originalPrice={checkoutCourse.originalPrice}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 }

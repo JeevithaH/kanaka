@@ -21,6 +21,10 @@ export interface IEnrollment extends Document {
   courseId: string;
   enrollmentDate: Date;
   status: 'active' | 'completed';
+  paymentStatus: 'pending' | 'paid';
+  amountPaid: number;
+  paymentDate?: Date;
+  couponUsed?: string;
   progressPercentage: number;
   completedLessons: string[]; // array of lesson IDs
   testStatus: ITestAttemptStatus[];
@@ -49,6 +53,22 @@ const EnrollmentSchema: Schema = new Schema<IEnrollment>(
       type: String,
       enum: ['active', 'completed'],
       default: 'active',
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'paid'],
+      default: 'pending',
+    },
+    amountPaid: {
+      type: Number,
+      default: 0,
+    },
+    paymentDate: {
+      type: Date,
+    },
+    couponUsed: {
+      type: String,
+      default: '',
     },
     progressPercentage: {
       type: Number,

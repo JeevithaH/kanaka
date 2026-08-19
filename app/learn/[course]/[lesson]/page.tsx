@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { CourseCheckoutModal } from '@/components/payments/CourseCheckoutModal';
 
 interface Question {
   id: string;
@@ -51,11 +52,17 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
   const [course, setCourse] = useState<CourseData | null>(null);
   const [activeLesson, setActiveLesson] = useState<LessonData | null>(null);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
+  const [isPaid, setIsPaid] = useState<boolean>(false);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(true);
+
   const [isTestMode, setIsTestMode] = useState(false);
   const [activeTest, setActiveTest] = useState<TestData | null>(null);
   const [answers, setAnswers] = useState<number[]>([]);
   const [testResult, setTestResult] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Checkout modal
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   useEffect(() => {
     async function loadPlayerData() {
@@ -65,7 +72,6 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
         if (data.course) {
           setCourse(data.course);
 
-          // Find requested lesson
           let foundLesson: LessonData | null = null;
           data.course.modules.forEach((mod: ModuleData) => {
             const l = mod.lessons.find((item) => item.id === params.lesson);
@@ -78,7 +84,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
           setActiveLesson(foundLesson);
         }
 
-        // Load progress
+        // Check payment status from enrollments
         if (user) {
           const enrollRes = await fetch('/api/enrollments');
           const enrollData = await enrollRes.json();
@@ -86,18 +92,23 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
             const match = enrollData.enrollments.find((e: any) => e.courseId === params.course);
             if (match) {
               setCompletedLessons(match.completedLessons || []);
+              setIsPaid(match.paymentStatus === 'paid');
+            } else {
+              setIsPaid(false);
             }
           }
         }
       } catch (err) {
         console.error('Failed to load course player:', err);
+      } finally {
+        setIsCheckingPayment(false);
       }
     }
     loadPlayerData();
   }, [params.course, params.lesson, user]);
 
   const markLessonComplete = async () => {
-    if (!activeLesson || !user) return;
+    if (!activeLesson || !user || !isPaid) return;
     try {
       const res = await fetch('/api/enrollments/progress', {
         method: 'POST',
@@ -120,7 +131,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
   };
 
   const submitTest = async () => {
-    if (!activeTest) return;
+    if (!activeTest || !isPaid) return;
     try {
       setIsSubmitting(true);
       const res = await fetch('/api/tests/submit', {
@@ -137,10 +148,15 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
     }
   };
 
-  if (!course) {
+  const handlePaymentSuccess = () => {
+    setIsPaid(true);
+    setIsCheckoutOpen(false);
+  };
+
+  if (!course || isCheckingPayment) {
     return (
-      <div className="min-h-screen bg-[#161616] text-white flex items-center justify-center p-8">
-        <div>Loading course workspace...</div>
+      <div className="min-h-screen bg-[#161616] text-white flex items-center justify-center p-8 font-sans">
+        <div className="text-sm font-semibold text-[#a8a8a8]">Verifying enrollment & payment status...</div>
       </div>
     );
   }
@@ -156,13 +172,64 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
           <span className="text-sm font-semibold border-l border-[#525252] pl-4">{course.title}</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-[#c6c6c6]">
-            Progress: {completedLessons.length} lessons done
-          </span>
+          {isPaid ? (
+            <span className="text-xs bg-[#defbe6] text-[#198038] px-2.5 py-1 font-bold rounded-full">
+              Paid & Unlocked ✓
+            </span>
+          ) : (
+            <button
+              onClick={() => setIsCheckoutOpen(true)}
+              className="bg-[#198038] text-white text-xs px-3.5 py-1.5 font-semibold rounded-lg hover:bg-[#0e6027] transition-colors"
+            >
+              💳 Pay ₹1,999 to Unlock (Coupon SKY90)
+            </button>
+          )}
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+        {/* UNPAID LOCKED OVERLAY */}
+        {!isPaid && (
+          <div className="absolute inset-0 z-40 bg-[#161616]/95 backdrop-blur-md flex items-center justify-center p-6 text-center">
+            <div className="bg-[#262626] border border-[#393939] p-8 lg:p-12 max-w-lg w-full rounded-2xl space-y-6 shadow-2xl">
+              <div className="w-16 h-16 rounded-full bg-[#da1e28]/20 text-[#da1e28] flex items-center justify-center mx-auto text-3xl font-bold">
+                🔒
+              </div>
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-[#da1e28] uppercase tracking-wider">Payment Required</span>
+                <h2 className="text-2xl font-light text-white">Course Content Locked</h2>
+                <p className="text-sm text-[#c6c6c6] leading-relaxed">
+                  Please complete the payment for <strong className="text-white">{course.title}</strong> to access lessons, interactive code modules, and the final certification exam.
+                </p>
+              </div>
+
+              <div className="bg-[#161616] border border-[#393939] p-4 rounded-xl text-left text-xs space-y-1.5">
+                <div className="flex justify-between text-[#c6c6c6]">
+                  <span>Standard Amount:</span>
+                  <span className="font-semibold text-white">₹1,999</span>
+                </div>
+                <div className="flex justify-between text-[#42be65]">
+                  <span>Discount with Coupon SKY90:</span>
+                  <span className="font-bold">90% OFF (Pay ₹199)</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsCheckoutOpen(true)}
+                className="w-full bg-[#198038] text-white py-3.5 text-sm font-semibold rounded-xl hover:bg-[#0e6027] transition-colors shadow-lg"
+              >
+                Pay ₹1,999 for Course (Apply Coupon SKY90)
+              </button>
+
+              <div className="pt-2">
+                <Link href="/dashboard" className="text-xs text-[#78a9ff] hover:underline">
+                  ← Return to Dashboard
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Left Sidebar - Module Accordion */}
         <aside className="w-full lg:w-80 bg-[#161616] border-r border-[#393939] overflow-y-auto shrink-0">
           <div className="p-4 border-b border-[#393939] text-xs uppercase tracking-wider text-[#a8a8a8] font-semibold">
@@ -343,6 +410,18 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
           )}
         </main>
       </div>
+
+      {/* Checkout Modal */}
+      {isCheckoutOpen && (
+        <CourseCheckoutModal
+          isOpen={isCheckoutOpen}
+          onClose={() => setIsCheckoutOpen(false)}
+          courseId={params.course}
+          courseTitle={course.title}
+          originalPrice={1999}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 }
