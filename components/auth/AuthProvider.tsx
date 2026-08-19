@@ -11,8 +11,9 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  refreshUser: () => void;
   isAuthenticated: boolean;
 }
 
@@ -22,39 +23,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const refreshUser = useCallback(() => {
     const session = document.cookie.split('; ').find(row => row.startsWith('skyrellac_session='));
     if (session) {
       try {
         const userData = JSON.parse(decodeURIComponent(session.split('=')[1]));
         setUser(userData);
-      } catch { /* invalid cookie */ }
+      } catch { setUser(null); }
+    } else {
+      setUser(null);
     }
+  }, []);
+
+  useEffect(() => {
+    refreshUser();
     setIsLoading(false);
-  }, []);
+  }, [refreshUser]);
 
-  const login = useCallback(async (email: string, _password: string): Promise<boolean> => {
-    const isAdmin = email.includes('admin');
-    const userData: User = {
-      id: isAdmin ? 'admin-1' : 'student-1',
-      email,
-      name: isAdmin ? 'Admin User' : 'Alex Johnson',
-      role: isAdmin ? 'admin' : 'student',
-    };
-    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
-    document.cookie = `skyrellac_session=${encodeURIComponent(JSON.stringify(userData))}; expires=${expires}; path=/; SameSite=Lax`;
-    setUser(userData);
-    return true;
-  }, []);
+  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Login failed.' };
+      }
+      // Cookie is set by the server response. Refresh from cookie.
+      refreshUser();
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Failed to connect to the server.' };
+    }
+  }, [refreshUser]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch { /* ignore */ }
     document.cookie = 'skyrellac_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
     setUser(null);
     window.location.href = '/';
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

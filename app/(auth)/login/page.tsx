@@ -3,15 +3,15 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
+  const { refreshUser } = useAuth();
 
-  const [selectedAudience, setSelectedAudience] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -35,35 +35,28 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setErrorMessage(data.error || 'Login failed. Please check your credentials.');
+        setErrorMessage(data.error || 'Invalid credentials or user does not exist.');
         return;
       }
 
-      // Success -> Redirect to target URL
+      refreshUser();
       window.location.href = redirect;
     } catch (err) {
-      setErrorMessage('Failed to connect to the server. Please try again.');
+      setErrorMessage('Failed to connect to authentication server. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col font-sans">
       {/* Auth Masthead */}
       <header className="h-12 border-b border-[#e0e0e0] bg-white">
         <div className="h-full max-w-[1584px] mx-auto px-4 flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            <Link href="/" className="font-semibold text-sm tracking-[0.1em] uppercase text-[#161616] hover:underline">
-              Skyrellac
-            </Link>
-          </div>
-          <button className="text-[#525252] text-sm flex items-center gap-1 hover:text-[#161616]">
-            <span>Language</span>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 11 3 6 3.7 5.3 8 9.6 12.3 5.3 13 6z" />
-            </svg>
-          </button>
+          <Link href="/" className="font-semibold text-sm tracking-[0.1em] uppercase text-[#161616] hover:underline">
+            Skyrellac
+          </Link>
+          <span className="text-[#525252] text-xs">Global Education & Learning Platform</span>
         </div>
       </header>
 
@@ -71,168 +64,100 @@ export default function LoginPage() {
       <main className="flex-1">
         <section className="max-w-[1584px] mx-auto px-4 pt-8 pb-12">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-            {/* Left Column - Content */}
+            {/* Left Column Form */}
             <div className="py-8 lg:py-16 lg:pr-16">
-              {!selectedAudience ? (
-                <>
-                  <h1 className="text-[#161616] font-light text-[2rem] lg:text-[2.625rem] leading-tight mb-4">
-                    Log in to Skyrellac
-                  </h1>
-                  
-                  {/* Prominent Sign Up Banner */}
-                  <div className="bg-[#f4f4f4] border border-[#e0e0e0] p-4 mb-8 max-w-sm flex items-center justify-between">
-                    <div>
-                      <p className="text-[#161616] text-xs font-semibold">New to Skyrellac?</p>
-                      <p className="text-[#525252] text-xs">Create an account to enroll in courses.</p>
-                    </div>
-                    <Link
-                      href={`/signup${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`}
-                      className="bg-[#0f62fe] text-white text-xs px-3.5 py-2 font-medium hover:bg-[#0043ce] transition-colors shrink-0"
-                    >
-                      Sign up
-                    </Link>
-                  </div>
+              <h1 className="text-[#161616] font-light text-[2rem] lg:text-[2.625rem] leading-tight mb-2">
+                Log in to Skyrellac
+              </h1>
 
-                  <div className="flex flex-col gap-4 max-w-sm">
-                    {['College or university', 'Adult learning', 'High school'].map((audience) => (
-                      <button
-                        key={audience}
-                        onClick={() => setSelectedAudience(audience)}
-                        className="w-full border border-[#0f62fe] text-[#0f62fe] px-4 py-3.5 text-sm text-left hover:bg-[#0143ce] hover:text-white hover:border-[#0143ce] transition-colors inline-flex items-center justify-between font-medium"
-                      >
-                        {audience}
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                          <path d="M9.3 3.7 13.1 7.5 1 7.5 1 8.5 13.1 8.5 9.3 12.3 10 13 15 8 10 3z"/>
-                        </svg>
-                      </button>
-                    ))}
-                  </div>
+              {/* Sign up prompt banner */}
+              <div className="bg-[#f4f4f4] border border-[#e0e0e0] p-4 mb-8 max-w-sm flex items-center justify-between">
+                <div>
+                  <p className="text-[#161616] text-xs font-semibold">New to Skyrellac?</p>
+                  <p className="text-[#525252] text-xs">Create an account to enroll in courses.</p>
+                </div>
+                <Link
+                  href={`/register${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`}
+                  className="bg-[#0f62fe] text-white text-xs px-3.5 py-2 font-medium hover:bg-[#0043ce] transition-colors shrink-0"
+                >
+                  Sign up
+                </Link>
+              </div>
 
-                  <div className="mt-10">
-                    <p className="text-[#525252] text-sm">
-                      Looking for{' '}
-                      <Link href="#" className="text-[#0f62fe] hover:underline font-medium">
-                        college software downloads
-                      </Link>
-                      ?
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <button 
-                    onClick={() => setSelectedAudience(null)}
-                    className="text-[#0f62fe] text-sm hover:underline flex items-center gap-1 mb-8"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="rotate-180">
-                      <path d="M9.3 3.7 13.1 7.5 1 7.5 1 8.5 13.1 8.5 9.3 12.3 10 13 15 8 10 3z"/>
-                    </svg>
-                    Back to audience selection
-                  </button>
-
-                  <h1 className="text-[#161616] font-light text-[2rem] lg:text-[2.625rem] leading-tight mb-6">
-                    Log in
-                  </h1>
-
-                  {/* Error Box */}
-                  {errorMessage && (
-                    <div className="max-w-sm mb-6 p-4 bg-[#fff0f1] border-l-4 border-[#da1e28] text-xs text-[#da1e28]">
-                      {errorMessage}
-                    </div>
-                  )}
-
-                  <div className="max-w-sm flex flex-col gap-3">
-                    <button 
-                      onClick={() => handleSignIn({ preventDefault: () => {} } as any)}
-                      className="w-full bg-[#161616] text-white px-4 py-3.5 text-sm hover:bg-[#393939] transition-colors text-left flex justify-between items-center"
-                    >
-                      Log in with Skyrellac ID
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M9.3 3.7 13.1 7.5 1 7.5 1 8.5 13.1 8.5 9.3 12.3 10 13 15 8 10 3z"/>
-                      </svg>
-                    </button>
-                    <button 
-                      onClick={() => handleSignIn({ preventDefault: () => {} } as any)}
-                      className="w-full border border-[#e0e0e0] text-[#161616] px-4 py-3.5 text-sm hover:bg-[#f4f4f4] transition-colors text-left flex justify-between items-center"
-                    >
-                      Log in with LinkedIn
-                    </button>
-                    <button 
-                      onClick={() => handleSignIn({ preventDefault: () => {} } as any)}
-                      className="w-full border border-[#e0e0e0] text-[#161616] px-4 py-3.5 text-sm hover:bg-[#f4f4f4] transition-colors text-left flex justify-between items-center"
-                    >
-                      Log in with Google
-                    </button>
-                  </div>
-                  
-                  <div className="max-w-sm my-6 flex items-center text-[#8d8d8d] text-sm before:flex-1 before:border-t before:border-[#e0e0e0] before:mr-4 after:flex-1 after:border-t after:border-[#e0e0e0] after:ml-4">
-                    or
-                  </div>
-
-                  <form onSubmit={handleSignIn} className="max-w-sm flex flex-col gap-4">
-                    <div>
-                      <label className="block text-sm text-[#161616] mb-1.5" htmlFor="email">Email</label>
-                      <input 
-                        type="email" 
-                        id="email" 
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#0f62fe]" 
-                        placeholder="user@example.com"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-[#161616] mb-1.5" htmlFor="password">Password</label>
-                      <input 
-                        type="password" 
-                        id="password" 
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#0f62fe]" 
-                        placeholder="••••••••"
-                      />
-                    </div>
-                    <button 
-                      type="submit"
-                      disabled={isLoading}
-                      className="w-full bg-[#0f62fe] text-white px-4 py-3.5 text-sm mt-4 hover:bg-[#0043ce] transition-colors flex justify-between items-center font-medium disabled:opacity-50"
-                    >
-                      {isLoading ? 'Signing in...' : 'Continue to Dashboard'}
-                      {!isLoading && (
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                          <path d="M9.3 3.7 13.1 7.5 1 7.5 1 8.5 13.1 8.5 9.3 12.3 10 13 15 8 10 3z"/>
-                        </svg>
-                      )}
-                    </button>
-                  </form>
-                </>
+              {/* Error Box */}
+              {errorMessage && (
+                <div className="max-w-sm mb-6 p-4 bg-[#fff0f1] border-l-4 border-[#da1e28] text-xs text-[#da1e28] leading-relaxed">
+                  {errorMessage}
+                </div>
               )}
+
+              <form onSubmit={handleSignIn} className="max-w-sm flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#161616] mb-1.5" htmlFor="email">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#0f62fe]"
+                    placeholder="user@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#161616] mb-1.5" htmlFor="password">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    id="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#0f62fe]"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-[#0f62fe] text-white px-4 py-3.5 text-sm mt-4 hover:bg-[#0043ce] transition-colors flex justify-between items-center font-medium disabled:opacity-50"
+                >
+                  {isLoading ? 'Signing in...' : 'Log In to Dashboard'}
+                  {!isLoading && (
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M9.3 3.7 13.1 7.5 1 7.5 1 8.5 13.1 8.5 9.3 12.3 10 13 15 8 10 3z" />
+                    </svg>
+                  )}
+                </button>
+              </form>
+
+              {/* Quick Sign up hint */}
+              <div className="mt-8 max-w-sm pt-4 border-t border-[#e0e0e0] text-xs text-[#525252]">
+                Don't have an account yet?{' '}
+                <Link href={`/register${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-[#0f62fe] font-medium hover:underline">
+                  Create one now
+                </Link>
+              </div>
             </div>
 
-            {/* Right Column - Media */}
+            {/* Right Column Media Panel */}
             <div className="hidden lg:block">
               <div className="relative w-full h-full bg-[#f4f4f4] flex items-center justify-center p-12">
-                 <div className="text-center max-w-sm space-y-4">
-                   <h2 className="text-2xl font-light text-[#161616]">Discover your next career move</h2>
-                   <p className="text-[#525252] text-sm leading-relaxed">
-                     Access learning resources, build technical skills, and earn verified credentials.
-                   </p>
-                 </div>
+                <div className="text-center max-w-sm space-y-4">
+                  <span className="text-xs font-semibold bg-[#e0e0e0] text-[#161616] px-3 py-1 uppercase tracking-wider">
+                    Official Skyrellac Auth
+                  </span>
+                  <h2 className="text-2xl font-light text-[#161616]">Discover your next career move</h2>
+                  <p className="text-[#525252] text-sm leading-relaxed">
+                    Access high-caliber courses, build technical skills, and earn verified credentials stored in MongoDB.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-
-          {/* Legal Links */}
-          <nav className="mt-8 pt-4 border-t border-[#e0e0e0] flex gap-6">
-            <Link href="/terms-of-use" className="text-[#0f62fe] text-xs hover:underline">
-              Terms of Use
-            </Link>
-            <Link href="/privacy" className="text-[#0f62fe] text-xs hover:underline">
-              Data Privacy Policy
-            </Link>
-          </nav>
         </section>
       </main>
     </div>

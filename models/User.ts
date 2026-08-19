@@ -1,12 +1,25 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
+export interface IUserProfile {
+  avatarUrl?: string;
+  headline?: string;
+  bio?: string;
+  phone?: string;
+  college?: string;
+  degree?: string;
+  location?: string;
+  linkedinUrl?: string;
+  githubUrl?: string;
+}
+
 export interface IUser extends Document {
   fullName: string;
   email: string;
   passwordHash: string;
   role: 'student' | 'admin';
-  isEmailVerified: boolean;
-  verificationToken?: string;
+  profile: IUserProfile;
+  registrationDate: Date;
+  lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,24 +38,34 @@ const UserSchema: Schema = new Schema<IUser>(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address'],
     },
     passwordHash: {
       type: String,
-      required: [true, 'Password hash is required'],
+      required: [true, 'Password is required'],
     },
     role: {
       type: String,
       enum: ['student', 'admin'],
       default: 'student',
     },
-    isEmailVerified: {
-      type: Boolean,
-      default: false,
+    profile: {
+      avatarUrl: { type: String, default: '' },
+      headline: { type: String, default: 'Student Learner' },
+      bio: { type: String, default: '' },
+      phone: { type: String, default: '' },
+      college: { type: String, default: '' },
+      degree: { type: String, default: '' },
+      location: { type: String, default: '' },
+      linkedinUrl: { type: String, default: '' },
+      githubUrl: { type: String, default: '' },
     },
-    verificationToken: {
-      type: String,
-      default: null,
+    registrationDate: {
+      type: Date,
+      default: Date.now,
+    },
+    lastLogin: {
+      type: Date,
+      default: Date.now,
     },
   },
   {

@@ -1,234 +1,348 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Sparkles, CheckCircle2, Circle, PlayCircle, FileText, ArrowLeft, ArrowRight, Download, Menu, X, BookOpen } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { MOCK_COURSES } from '@/lib/supabase/mock-data';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/auth/AuthProvider';
 
-export default function LearningPlayerPage({ params }: { params: { course: string; lesson: string } }) {
-  const course = MOCK_COURSES.find((c) => c.slug === params.course) || MOCK_COURSES[0];
-  const [activeTab, setActiveTab] = useState<'overview' | 'resources' | 'notes'>('overview');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [completedLessons, setCompletedLessons] = useState<number[]>([1, 2]);
-  const [currentLessonIndex, setCurrentLessonIndex] = useState(2); // 0-indexed lesson 3
+interface Question {
+  id: string;
+  questionText: string;
+  options: string[];
+  correctOptionIndex: number;
+  explanation?: string;
+}
 
-  const lessonList = [
-    { id: 1, title: '1. Course Overview & Setup', duration: '12m', completed: true },
-    { id: 2, title: '2. Core Principles & Architecture', duration: '18m', completed: true },
-    { id: 3, title: '3. Hands-on Interactive Practice', duration: '25m', active: true },
-    { id: 4, title: '4. Module 1 Knowledge Quiz', duration: '15m' },
-    { id: 5, title: '5. Intermediate Algorithms', duration: '30m' },
-    { id: 6, title: '6. Final Credential Assessment', duration: '40m' },
-  ];
+interface TestData {
+  id: string;
+  title: string;
+  durationMinutes: number;
+  passingScorePct: number;
+  questions: Question[];
+}
 
-  const toggleComplete = (id: number) => {
-    if (completedLessons.includes(id)) {
-      setCompletedLessons(completedLessons.filter((l) => l !== id));
-    } else {
-      setCompletedLessons([...completedLessons, id]);
+interface LessonData {
+  id: string;
+  title: string;
+  duration: string;
+  contentType: string;
+  videoUrl?: string;
+  contentText?: string;
+}
+
+interface ModuleData {
+  id: string;
+  title: string;
+  description: string;
+  lessons: LessonData[];
+}
+
+interface CourseData {
+  courseId: string;
+  title: string;
+  modules: ModuleData[];
+  tests: TestData[];
+}
+
+export default function CoursePlayerPage({ params }: { params: { course: string; lesson: string } }) {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  const [course, setCourse] = useState<CourseData | null>(null);
+  const [activeLesson, setActiveLesson] = useState<LessonData | null>(null);
+  const [completedLessons, setCompletedLessons] = useState<string[]>([]);
+  const [isTestMode, setIsTestMode] = useState(false);
+  const [activeTest, setActiveTest] = useState<TestData | null>(null);
+  const [answers, setAnswers] = useState<number[]>([]);
+  const [testResult, setTestResult] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    async function loadPlayerData() {
+      try {
+        const res = await fetch(`/api/courses/${params.course}`);
+        const data = await res.json();
+        if (data.course) {
+          setCourse(data.course);
+
+          // Find requested lesson
+          let foundLesson: LessonData | null = null;
+          data.course.modules.forEach((mod: ModuleData) => {
+            const l = mod.lessons.find((item) => item.id === params.lesson);
+            if (l) foundLesson = l;
+          });
+
+          if (!foundLesson && data.course.modules[0]?.lessons[0]) {
+            foundLesson = data.course.modules[0].lessons[0];
+          }
+          setActiveLesson(foundLesson);
+        }
+
+        // Load progress
+        if (user) {
+          const enrollRes = await fetch('/api/enrollments');
+          const enrollData = await enrollRes.json();
+          if (enrollData.enrollments) {
+            const match = enrollData.enrollments.find((e: any) => e.courseId === params.course);
+            if (match) {
+              setCompletedLessons(match.completedLessons || []);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load course player:', err);
+      }
+    }
+    loadPlayerData();
+  }, [params.course, params.lesson, user]);
+
+  const markLessonComplete = async () => {
+    if (!activeLesson || !user) return;
+    try {
+      const res = await fetch('/api/enrollments/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId: params.course, lessonId: activeLesson.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCompletedLessons(data.completedLessons || []);
+      }
+    } catch (err) {
+      console.error('Failed to mark lesson complete:', err);
     }
   };
 
+  const handleTestOptionSelect = (qIndex: number, optIndex: number) => {
+    const updated = [...answers];
+    updated[qIndex] = optIndex;
+    setAnswers(updated);
+  };
+
+  const submitTest = async () => {
+    if (!activeTest) return;
+    try {
+      setIsSubmitting(true);
+      const res = await fetch('/api/tests/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId: params.course, testId: activeTest.id, answers }),
+      });
+      const data = await res.json();
+      setTestResult(data);
+    } catch (err) {
+      alert('Error submitting test.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!course) {
+    return (
+      <div className="min-h-screen bg-[#161616] text-white flex items-center justify-center p-8">
+        <div>Loading course workspace...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col">
-      
-      {/* Top Learning Header Bar */}
-      <header className="h-16 bg-slate-950 border-b border-slate-800 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-50">
+    <div className="min-h-screen bg-[#161616] text-white flex flex-col font-sans">
+      {/* Player Header */}
+      <header className="h-14 bg-[#262626] border-b border-[#393939] px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
-            <ArrowLeft className="w-5 h-5" />
+          <Link href="/dashboard" className="text-xs text-[#78a9ff] hover:underline">
+            ← Dashboard
           </Link>
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-black">S</div>
-            <span className="text-sm font-bold text-white hidden sm:inline">{course.title}</span>
-          </div>
+          <span className="text-sm font-semibold border-l border-[#525252] pl-4">{course.title}</span>
         </div>
-
-        {/* Progress Bar Indicator */}
-        <div className="hidden md:flex items-center gap-3 text-xs text-slate-400">
-          <span>Course Progress: 72%</span>
-          <div className="w-32 bg-slate-800 h-2 rounded-full overflow-hidden">
-            <div className="bg-blue-500 h-full w-[72%]" />
-          </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-[#c6c6c6]">
+            Progress: {completedLessons.length} lessons done
+          </span>
         </div>
-
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white border border-slate-700 flex items-center gap-2 text-xs font-semibold"
-        >
-          {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          <span className="hidden sm:inline">Course Content</span>
-        </button>
       </header>
 
-      {/* Main Workspace Body */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        
-        {/* Main Lesson Content Area */}
-        <div className="flex-1 flex flex-col overflow-y-auto bg-slate-900">
-          
-          {/* Simulated Video Frame Player Container */}
-          <div className="w-full bg-black aspect-video max-h-[520px] flex items-center justify-center relative border-b border-slate-800">
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-blue-600/90 text-white flex items-center justify-center mx-auto shadow-glow-primary cursor-pointer hover:scale-105 transition-transform">
-                <PlayCircle className="w-10 h-10" />
-              </div>
-              <p className="text-sm font-semibold text-slate-300">Video Lesson Preview Stream</p>
-              <span className="text-xs text-slate-500 font-mono">1080p HD • Interactive Player</span>
-            </div>
+        {/* Left Sidebar - Module Accordion */}
+        <aside className="w-full lg:w-80 bg-[#161616] border-r border-[#393939] overflow-y-auto shrink-0">
+          <div className="p-4 border-b border-[#393939] text-xs uppercase tracking-wider text-[#a8a8a8] font-semibold">
+            Course Outline
           </div>
-
-          {/* Lesson Metadata & Control Bar */}
-          <div className="p-6 lg:p-8 space-y-6 max-w-5xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
-                  Lesson {currentLessonIndex + 1}
-                </span>
-                <h1 className="text-2xl font-bold text-white pt-2">
-                  {lessonList[currentLessonIndex]?.title}
-                </h1>
-              </div>
-
-              <button
-                onClick={() => toggleComplete(lessonList[currentLessonIndex].id)}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                  completedLessons.includes(lessonList[currentLessonIndex].id)
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-blue-600 text-white hover:bg-blue-500'
-                }`}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>
-                  {completedLessons.includes(lessonList[currentLessonIndex].id)
-                    ? 'Completed ✓'
-                    : 'Mark as Complete'}
-                </span>
-              </button>
-            </div>
-
-            {/* Tab Controls */}
-            <div className="flex items-center gap-4 border-b border-slate-800 text-sm font-semibold">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`pb-3 border-b-2 transition-colors ${
-                  activeTab === 'overview' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'
-                }`}
-              >
-                Lesson Overview
-              </button>
-              <button
-                onClick={() => setActiveTab('resources')}
-                className={`pb-3 border-b-2 transition-colors ${
-                  activeTab === 'resources' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'
-                }`}
-              >
-                Resources & Downloads
-              </button>
-            </div>
-
-            {/* Tab Content */}
-            {activeTab === 'overview' && (
-              <div className="space-y-4 text-sm text-slate-300 leading-relaxed">
-                <p>
-                  In this lesson, we build real-world skills by applying core architecture patterns directly inside hands-on code examples.
-                </p>
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Key Objectives:</h4>
-                  <ul className="list-disc list-inside space-y-1 text-xs text-slate-400">
-                    <li>Understand data structures and practical algorithms.</li>
-                    <li>Analyze error telemetry and performance benchmarks.</li>
-                    <li>Prepare for official Skyrellac credential evaluation.</li>
-                  </ul>
+          <div className="divide-y divide-[#262626]">
+            {course.modules.map((mod) => (
+              <div key={mod.id} className="p-4 space-y-2">
+                <div className="text-xs font-semibold text-[#78a9ff]">{mod.title}</div>
+                <div className="space-y-1">
+                  {mod.lessons.map((lesson) => {
+                    const isDone = completedLessons.includes(lesson.id);
+                    const isActive = activeLesson?.id === lesson.id && !isTestMode;
+                    return (
+                      <button
+                        key={lesson.id}
+                        onClick={() => {
+                          setIsTestMode(false);
+                          setActiveLesson(lesson);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition-colors ${
+                          isActive
+                            ? 'bg-[#0f62fe] text-white font-semibold'
+                            : 'text-[#c6c6c6] hover:bg-[#262626]'
+                        }`}
+                      >
+                        <span className="truncate flex-1">{lesson.title}</span>
+                        {isDone && <span className="text-[#42be65] font-bold text-xs ml-2">✓</span>}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            )}
+            ))}
 
-            {activeTab === 'resources' && (
-              <div className="space-y-3">
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-indigo-400" />
-                    <div>
-                      <p className="font-bold text-white">Lesson Handout Guide (PDF)</p>
-                      <span className="text-slate-500">2.4 MB</span>
+            {/* Test tab */}
+            {course.tests?.length > 0 && (
+              <div className="p-4">
+                <button
+                  onClick={() => {
+                    setIsTestMode(true);
+                    setActiveTest(course.tests[0]);
+                    setAnswers(new Array(course.tests[0].questions.length).fill(-1));
+                    setTestResult(null);
+                  }}
+                  className={`w-full text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center justify-between border border-[#0f62fe] ${
+                    isTestMode ? 'bg-[#0f62fe] text-white' : 'text-[#78a9ff] hover:bg-[#0f62fe]/10'
+                  }`}
+                >
+                  <span>📝 Take Certification Test</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* Right Main Player Screen */}
+        <main className="flex-1 bg-[#262626] p-6 lg:p-10 overflow-y-auto">
+          {!isTestMode ? (
+            /* Lesson View */
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="flex items-center justify-between border-b border-[#393939] pb-4">
+                <div>
+                  <span className="text-xs text-[#0f62fe] uppercase tracking-wider font-semibold">
+                    {activeLesson?.contentType} Lesson
+                  </span>
+                  <h1 className="text-2xl lg:text-3xl font-light mt-1">{activeLesson?.title}</h1>
+                </div>
+                <button
+                  onClick={markLessonComplete}
+                  className="bg-[#198038] text-white text-xs px-4 py-2.5 font-semibold hover:bg-[#0e6027] transition-colors"
+                >
+                  Mark Lesson Complete ✓
+                </button>
+              </div>
+
+              {/* Lesson Media/Content */}
+              <div className="bg-[#161616] border border-[#393939] p-6 space-y-4">
+                <div className="aspect-video bg-[#000000] border border-[#393939] flex items-center justify-center p-8">
+                  <div className="text-center space-y-3">
+                    <div className="w-16 h-16 rounded-full bg-[#0f62fe] flex items-center justify-center mx-auto text-white text-2xl font-bold">
+                      ▶
                     </div>
+                    <p className="text-sm font-semibold text-white">Interactive Lesson Video Stream</p>
+                    <p className="text-xs text-[#a8a8a8]">Duration: {activeLesson?.duration}</p>
                   </div>
-                  <button className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white">
-                    <Download className="w-4 h-4" />
-                  </button>
+                </div>
+
+                <div className="prose prose-invert max-w-none text-sm text-[#c6c6c6] leading-relaxed pt-4">
+                  <h3 className="text-white text-base font-semibold mb-2">Lesson Notes & Reference Summary</h3>
+                  <p>{activeLesson?.contentText || 'Study the material presented above carefully.'}</p>
                 </div>
               </div>
-            )}
-
-            {/* Footer Pagination Controls */}
-            <div className="pt-8 border-t border-slate-800 flex items-center justify-between">
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={currentLessonIndex === 0}
-                onClick={() => setCurrentLessonIndex(Math.max(0, currentLessonIndex - 1))}
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Previous Lesson</span>
-              </Button>
-
-              <Button
-                variant="glow"
-                size="sm"
-                disabled={currentLessonIndex === lessonList.length - 1}
-                onClick={() => setCurrentLessonIndex(Math.min(lessonList.length - 1, currentLessonIndex + 1))}
-              >
-                <span>Next Lesson</span>
-                <ArrowRight className="w-4 h-4" />
-              </Button>
             </div>
+          ) : (
+            /* Certification Test Runner */
+            <div className="max-w-3xl mx-auto space-y-8 bg-[#161616] border border-[#393939] p-8">
+              <div>
+                <span className="text-xs bg-[#0f62fe] text-white px-2 py-0.5 uppercase font-semibold">
+                  Official Exam
+                </span>
+                <h1 className="text-2xl font-light mt-2">{activeTest?.title}</h1>
+                <p className="text-xs text-[#a8a8a8] mt-1">
+                  Passing Score: {activeTest?.passingScorePct}% | 5 Multiple Choice Questions
+                </p>
+              </div>
 
-          </div>
+              {testResult ? (
+                /* Result Display */
+                <div className="space-y-6 bg-[#262626] border border-[#393939] p-6">
+                  <div className={`p-4 border-l-4 ${testResult.passed ? 'border-[#198038] bg-[#defbe6]/10 text-[#defbe6]' : 'border-[#da1e28] bg-[#fff0f1]/10 text-[#da1e28]'}`}>
+                    <h2 className="text-xl font-bold">{testResult.message}</h2>
+                    <p className="text-sm mt-1">Your Score: {testResult.scorePct}%</p>
+                  </div>
 
-        </div>
-
-        {/* Collapsible Course Content Sidebar */}
-        {sidebarOpen && (
-          <aside className="w-full lg:w-80 bg-slate-950 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col p-4 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 px-2">Course Modules</h3>
-
-            <div className="space-y-1 overflow-y-auto">
-              {lessonList.map((item, idx) => {
-                const isCompleted = completedLessons.includes(item.id);
-                const isActive = currentLessonIndex === idx;
-
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setCurrentLessonIndex(idx)}
-                    className={`w-full flex items-center justify-between p-3 rounded-xl text-xs font-semibold text-left transition-all ${
-                      isActive
-                        ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                        : 'text-slate-300 hover:bg-slate-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      {isCompleted ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      ) : isActive ? (
-                        <ArrowRight className="w-4 h-4 text-blue-400 shrink-0" />
-                      ) : (
-                        <Circle className="w-4 h-4 text-slate-600 shrink-0" />
-                      )}
-                      <span className="truncate max-w-[180px]">{item.title}</span>
+                  {testResult.certificate && (
+                    <div className="p-4 bg-[#0f62fe]/20 border border-[#0f62fe] space-y-3">
+                      <h3 className="text-sm font-bold text-white">🏆 Digital Certificate Issued!</h3>
+                      <p className="text-xs text-[#c6c6c6]">Certificate ID: {testResult.certificate.certificateId}</p>
+                      <Link
+                        href={`/certificate/${testResult.certificate.certificateId}`}
+                        className="inline-block bg-[#198038] text-white text-xs px-4 py-2 font-semibold hover:bg-[#0e6027]"
+                      >
+                        View Verified Certificate
+                      </Link>
                     </div>
-                    <span className="text-slate-500 font-mono">{item.duration}</span>
+                  )}
+
+                  <button
+                    onClick={() => setTestResult(null)}
+                    className="border border-[#e0e0e0] text-white text-xs px-4 py-2 hover:bg-[#393939]"
+                  >
+                    Retake Test
                   </button>
-                );
-              })}
+                </div>
+              ) : (
+                /* Questions Form */
+                <div className="space-y-8">
+                  {activeTest?.questions.map((q, qIdx) => (
+                    <div key={q.id} className="space-y-3 border-b border-[#393939] pb-6">
+                      <p className="text-sm font-semibold text-white">
+                        {qIdx + 1}. {q.questionText}
+                      </p>
+                      <div className="space-y-2">
+                        {q.options.map((opt, optIdx) => (
+                          <label
+                            key={optIdx}
+                            className={`flex items-center gap-3 p-3 text-xs border cursor-pointer transition-colors ${
+                              answers[qIdx] === optIdx
+                                ? 'bg-[#0f62fe] border-[#0f62fe] text-white font-medium'
+                                : 'border-[#393939] bg-[#262626] text-[#c6c6c6] hover:bg-[#393939]'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`question-${qIdx}`}
+                              checked={answers[qIdx] === optIdx}
+                              onChange={() => handleTestOptionSelect(qIdx, optIdx)}
+                              className="hidden"
+                            />
+                            <span>{String.fromCharCode(65 + optIdx)}. {opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={submitTest}
+                    disabled={isSubmitting || answers.includes(-1)}
+                    className="w-full bg-[#0f62fe] text-white py-3.5 text-sm font-semibold hover:bg-[#0043ce] transition-colors disabled:opacity-50"
+                  >
+                    {isSubmitting ? 'Grading test...' : 'Submit Assessment for Grading'}
+                  </button>
+                </div>
+              )}
             </div>
-          </aside>
-        )}
-
+          )}
+        </main>
       </div>
-
     </div>
   );
 }
