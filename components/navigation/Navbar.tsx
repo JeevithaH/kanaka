@@ -3,21 +3,28 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 const NAV_LINKS = [
-  { name: 'Adult learners', href: '/adult-learners' },
-  { name: 'University', href: '/university' },
-  { name: 'High school', href: '/high-school' },
-  { name: 'Learning catalog', href: '/learning-catalog' },
-  { name: 'Events', href: '/events' },
+  { name: 'Courses', href: '/courses' },
+  { name: 'Learning paths', href: '/learning-paths' },
+  { name: 'Internships', href: '/internships' },
+  { name: 'Credentials', href: '/credentials' },
+  { name: 'Pricing', href: '/pricing' },
 ];
 
 export function Navbar() {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const handleSignOut = (e: React.MouseEvent) => {
+    e.preventDefault();
+    logout();
+  };
+
   return (
-    <header className="h-12 bg-white border-b border-[#e0e0e0] sticky top-0 z-50">
+    <header className="h-12 bg-white border-b border-[#e0e0e0] sticky top-0 z-50 font-sans">
       <div className="max-w-[1584px] mx-auto px-4 h-full flex items-center justify-between">
         {/* Left section: Logo and Desktop Links */}
         <div className="flex items-center h-full">
@@ -58,17 +65,36 @@ export function Navbar() {
           </nav>
         </div>
 
-        {/* Right section: Auth buttons */}
+        {/* Right section: Auth buttons / User Profile */}
         <div className="flex items-center space-x-4">
-          <Link href="/login" className="text-sm text-[#161616] hover:text-[#0f62fe] transition-colors hidden md:block">
-            Log in
-          </Link>
-          <Link
-            href="/signup"
-            className="bg-[#0f62fe] text-white px-4 py-2 text-sm hover:bg-[#0043ce] transition-colors"
-          >
-            Sign up
-          </Link>
+          {user ? (
+            <>
+              <Link
+                href="/dashboard"
+                className="text-sm font-semibold text-[#0f62fe] hover:underline"
+              >
+                Dashboard ({user.name.split(' ')[0]})
+              </Link>
+              <button
+                onClick={handleSignOut}
+                className="bg-[#da1e28] text-white px-3.5 py-1.5 text-xs font-semibold hover:bg-[#b81922] transition-colors"
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="text-sm text-[#161616] hover:text-[#0f62fe] transition-colors hidden md:block">
+                Log in
+              </Link>
+              <Link
+                href="/register"
+                className="bg-[#0f62fe] text-white px-4 py-2 text-sm hover:bg-[#0043ce] transition-colors"
+              >
+                Sign up
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -110,10 +136,32 @@ export function Navbar() {
                   </Link>
                 );
               })}
-              <div className="pt-4 mt-2 border-t border-[#e0e0e0] flex flex-col space-y-4">
-                <Link href="/login" className="text-sm text-[#161616]" onClick={() => setMobileMenuOpen(false)}>
-                  Log in
-                </Link>
+              <div className="pt-4 mt-2 border-t border-[#e0e0e0] flex flex-col space-y-3">
+                {user ? (
+                  <>
+                    <Link href="/dashboard" className="text-sm text-[#0f62fe] font-semibold" onClick={() => setMobileMenuOpen(false)}>
+                      Go to Dashboard
+                    </Link>
+                    <button
+                      onClick={(e) => {
+                        setMobileMenuOpen(false);
+                        handleSignOut(e);
+                      }}
+                      className="text-sm text-[#da1e28] text-left font-semibold"
+                    >
+                      Sign out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/login" className="text-sm text-[#161616]" onClick={() => setMobileMenuOpen(false)}>
+                      Log in
+                    </Link>
+                    <Link href="/register" className="text-sm text-[#0f62fe] font-semibold" onClick={() => setMobileMenuOpen(false)}>
+                      Sign up
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>

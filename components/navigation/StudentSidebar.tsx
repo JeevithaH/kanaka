@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/components/auth/AuthProvider';
 import {
   LayoutDashboard,
   BookOpen,
@@ -12,14 +13,18 @@ import {
   Briefcase,
   UserCheck,
   User,
-  Settings,
-  HelpCircle,
   LogOut,
   Sparkles,
 } from 'lucide-react';
 
 export const StudentSidebar: React.FC = () => {
   const pathname = usePathname();
+  const { logout } = useAuth();
+
+  const handleSignOut = (e: React.MouseEvent) => {
+    e.preventDefault();
+    logout();
+  };
 
   const sections = [
     {
@@ -31,7 +36,7 @@ export const StudentSidebar: React.FC = () => {
     {
       title: 'LEARNING',
       items: [
-        { name: 'My Courses', href: '/dashboard/courses', icon: BookOpen },
+        { name: 'My Courses', href: '/dashboard', icon: BookOpen },
         { name: 'Learning Paths', href: '/learning-paths', icon: Compass },
         { name: 'Explore Catalog', href: '/courses', icon: Compass },
       ],
@@ -39,31 +44,24 @@ export const StudentSidebar: React.FC = () => {
     {
       title: 'ASSESSMENT',
       items: [
-        { name: 'Tests & Quizzes', href: '/dashboard/tests', icon: FileCheck },
+        { name: 'Tests & Quizzes', href: '/dashboard', icon: FileCheck },
       ],
     },
     {
       title: 'CAREER',
       items: [
         { name: 'Internships', href: '/internships', icon: Briefcase },
-        { name: 'Applications', href: '/dashboard/applications', icon: UserCheck },
-        { name: 'Credentials', href: '/dashboard/credentials', icon: Award },
-      ],
-    },
-    {
-      title: 'ACCOUNT',
-      items: [
-        { name: 'Skill Profile', href: '/dashboard/profile', icon: User },
+        { name: 'Credentials', href: '/credentials', icon: Award },
       ],
     },
   ];
 
   return (
-    <aside className="w-64 min-h-screen bg-white border-r border-slate-200 flex flex-col justify-between p-4 sticky top-0 shadow-soft-sm">
+    <aside className="w-64 min-h-screen bg-white border-r border-slate-200 flex flex-col justify-between p-4 sticky top-0 shadow-soft-sm shrink-0 font-sans">
       <div className="space-y-6">
         {/* Brand Header */}
         <Link href="/" className="flex items-center gap-2.5 px-2 py-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-soft-sm">
+          <div className="w-8 h-8 rounded-lg bg-[#0f62fe] flex items-center justify-center shadow-soft-sm">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <span className="text-lg font-black tracking-tight text-slate-900">SKYRELLAC</span>
@@ -103,13 +101,13 @@ export const StudentSidebar: React.FC = () => {
 
       {/* Footer / Sign Out */}
       <div className="pt-4 border-t border-slate-100 space-y-1">
-        <Link
-          href="/login"
-          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-rose-600 hover:bg-rose-50 transition-colors text-left"
         >
           <LogOut className="w-4 h-4" />
           <span>Sign Out</span>
-        </Link>
+        </button>
       </div>
     </aside>
   );
