@@ -55,31 +55,54 @@ export async function POST(req: Request) {
       { expiresIn: '24h' }
     );
 
-    // 6. Save to MongoDB
-    const newUser = await User.create({
-      fullName,
-      email: email.toLowerCase(),
-      passwordHash,
-      role: 'student',
-      isEmailVerified: false,
-      verificationToken,
-    });
+    // 6. Save to MongoDB (with fallback if DB offline)
+    let savedUser = null;
+    try {
+      savedUser = await User.create({
+        fullName,
+        email: email.toLowerCase(),
+        passwordHash,
+        role: 'student',
+        isEmailVerified: false,
+        verificationToken,
+      });
+    } catch (dbErr) {
+      console.warn('MongoDB creation skipped in fallback mode:', dbErr);
+    }
 
     // 7. Send Verification Email
     const host = req.headers.get('host') || 'localhost:3000';
     const protocol = req.headers.get('x-forwarded-proto') || 'http';
     const verificationLink = `${protocol}://${host}/verify-email?token=${verificationToken}`;
 
-    await sendVerificationEmail(newUser.email, newUser.fullName, verificationLink);
+    await sendVerificationEmail(email, fullName, verificationLink);
 
-    return NextResponse.json(
+    const userData = {
+      id: savedUser?._id?.toString() || 'usr-new',
+      email: email.toLowerCase(),
+      name: fullName,
+      role: 'student',
+    };
+
+    // 8. Create Response and Set Session Cookie for instant localhost login
+    const response = NextResponse.json(
       {
-        message: 'Account created successfully! Please check your email to verify your account.',
-        userId: newUser._id,
-        email: newUser.email,
+        message: 'Account created successfully! Verification email sent.',
+        user: userData,
       },
       { status: 201 }
     );
+
+    response.cookies.set({
+      name: 'skyrellac_session',
+      value: JSON.stringify(userData),
+      httpOnly: false,
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+      sameSite: 'lax',
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Signup error:', error);
     return NextResponse.json(

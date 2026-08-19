@@ -2,15 +2,49 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 export default function SignInPage() {
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect') || '/dashboard';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSignIn = (e: React.FormEvent) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate sign in and redirect
-    window.location.href = '/dashboard';
+    setErrorMessage('');
+
+    if (!email || !password) {
+      setErrorMessage('Please enter both email and password.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMessage(data.error || 'Sign in failed. Please check your credentials.');
+        return;
+      }
+
+      // Success -> Redirect to target URL
+      window.location.href = redirect;
+    } catch (err) {
+      setErrorMessage('Failed to connect to the server. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -38,21 +72,37 @@ export default function SignInPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
             {/* Left Column - Content */}
             <div className="py-8 lg:py-16 lg:pr-16">
-              <h1 className="text-[#161616] font-light text-[2rem] lg:text-[2.625rem] leading-tight mb-8">
+              <h1 className="text-[#161616] font-light text-[2rem] lg:text-[2.625rem] leading-tight mb-6">
                 Sign in to Skyrellac
               </h1>
 
-              <div className="max-w-sm flex flex-col gap-4">
-                <button className="w-full bg-[#161616] text-white px-4 py-3.5 text-sm hover:bg-[#393939] transition-colors text-left flex justify-between items-center">
+              {/* Error Box */}
+              {errorMessage && (
+                <div className="max-w-sm mb-6 p-4 bg-[#fff0f1] border-l-4 border-[#da1e28] text-xs text-[#da1e28]">
+                  {errorMessage}
+                </div>
+              )}
+
+              <div className="max-w-sm flex flex-col gap-3">
+                <button 
+                  onClick={() => handleSignIn({ preventDefault: () => {} } as any)}
+                  className="w-full bg-[#161616] text-white px-4 py-3.5 text-sm hover:bg-[#393939] transition-colors text-left flex justify-between items-center"
+                >
                   Sign in with Skyrellac ID
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M9.3 3.7 13.1 7.5 1 7.5 1 8.5 13.1 8.5 9.3 12.3 10 13 15 8 10 3z"/>
                   </svg>
                 </button>
-                <button className="w-full border border-[#e0e0e0] text-[#161616] px-4 py-3.5 text-sm hover:bg-[#f4f4f4] transition-colors text-left flex justify-between items-center">
+                <button 
+                  onClick={() => handleSignIn({ preventDefault: () => {} } as any)}
+                  className="w-full border border-[#e0e0e0] text-[#161616] px-4 py-3.5 text-sm hover:bg-[#f4f4f4] transition-colors text-left flex justify-between items-center"
+                >
                   Sign in with LinkedIn
                 </button>
-                <button className="w-full border border-[#e0e0e0] text-[#161616] px-4 py-3.5 text-sm hover:bg-[#f4f4f4] transition-colors text-left flex justify-between items-center">
+                <button 
+                  onClick={() => handleSignIn({ preventDefault: () => {} } as any)}
+                  className="w-full border border-[#e0e0e0] text-[#161616] px-4 py-3.5 text-sm hover:bg-[#f4f4f4] transition-colors text-left flex justify-between items-center"
+                >
                   Sign in with Google
                 </button>
               </div>
@@ -63,7 +113,7 @@ export default function SignInPage() {
 
               <form onSubmit={handleSignIn} className="max-w-sm flex flex-col gap-4">
                 <div>
-                  <label className="block text-sm text-[#161616] mb-2" htmlFor="email">Email</label>
+                  <label className="block text-sm text-[#161616] mb-1.5" htmlFor="email">Email</label>
                   <input 
                     type="email" 
                     id="email" 
@@ -75,7 +125,7 @@ export default function SignInPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-[#161616] mb-2" htmlFor="password">Password</label>
+                  <label className="block text-sm text-[#161616] mb-1.5" htmlFor="password">Password</label>
                   <input 
                     type="password" 
                     id="password" 
@@ -88,12 +138,15 @@ export default function SignInPage() {
                 </div>
                 <button 
                   type="submit"
-                  className="w-full bg-[#0f62fe] text-white px-4 py-3.5 text-sm mt-4 hover:bg-[#0043ce] transition-colors flex justify-between items-center"
+                  disabled={isLoading}
+                  className="w-full bg-[#0f62fe] text-white px-4 py-3.5 text-sm mt-4 hover:bg-[#0043ce] transition-colors flex justify-between items-center font-medium disabled:opacity-50"
                 >
-                  Continue
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M9.3 3.7 13.1 7.5 1 7.5 1 8.5 13.1 8.5 9.3 12.3 10 13 15 8 10 3z"/>
-                  </svg>
+                  {isLoading ? 'Signing in...' : 'Continue to Dashboard'}
+                  {!isLoading && (
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M9.3 3.7 13.1 7.5 1 7.5 1 8.5 13.1 8.5 9.3 12.3 10 13 15 8 10 3z"/>
+                    </svg>
+                  )}
                 </button>
               </form>
 
@@ -103,7 +156,7 @@ export default function SignInPage() {
                   <p className="text-[#525252] text-xs">Create your free Skyrellac account today.</p>
                 </div>
                 <Link
-                  href="/signup"
+                  href={`/signup${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`}
                   className="bg-[#0f62fe] text-white text-xs px-3.5 py-2 font-medium hover:bg-[#0043ce] transition-colors shrink-0"
                 >
                   Sign up
@@ -114,9 +167,11 @@ export default function SignInPage() {
             {/* Right Column - Media */}
             <div className="hidden lg:block">
               <div className="relative w-full h-full bg-[#f4f4f4] flex items-center justify-center p-12">
-                 <div className="text-center max-w-sm">
-                   <h2 className="text-2xl font-light text-[#161616] mb-4">Discover your next career move</h2>
-                   <p className="text-[#525252]">Access free learning, support, and resources to build the skills you need for today&apos;s jobs.</p>
+                 <div className="text-center max-w-sm space-y-4">
+                   <h2 className="text-2xl font-light text-[#161616]">Discover your next career move</h2>
+                   <p className="text-[#525252] text-sm leading-relaxed">
+                     Access learning resources, build technical skills, and earn verified credentials.
+                   </p>
                  </div>
               </div>
             </div>
