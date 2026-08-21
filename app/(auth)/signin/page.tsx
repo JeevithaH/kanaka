@@ -1,8 +1,8 @@
 'use client';
-import { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function SigninRedirect() {
+function SigninRedirectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   useEffect(() => {
@@ -10,4 +10,12 @@ export default function SigninRedirect() {
     router.replace(`/login${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`);
   }, [router, searchParams]);
   return null;
+}
+
+export default function SigninRedirect() {
+  return (
+    <Suspense fallback={null}>
+      <SigninRedirectContent />
+    </Suspense>
+  );
 }

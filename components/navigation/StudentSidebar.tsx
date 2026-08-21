@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -15,7 +15,7 @@ import {
   LogOut,
 } from 'lucide-react';
 
-export const StudentSidebar: React.FC = () => {
+function StudentSidebarContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentTab = searchParams.get('tab') || 'all';
@@ -122,5 +122,13 @@ export const StudentSidebar: React.FC = () => {
         </button>
       </div>
     </aside>
+  );
+}
+
+export const StudentSidebar: React.FC = () => {
+  return (
+    <Suspense fallback={<aside className="w-64 min-h-screen bg-[#efebe7] border-r border-[#ded7d0]" />}>
+      <StudentSidebarContent />
+    </Suspense>
   );
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
@@ -72,7 +72,7 @@ interface NotificationData {
   createdAt: string;
 }
 
-export default function StudentDashboardPage() {
+function StudentDashboardContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const tabQuery = searchParams.get('tab');
@@ -677,5 +677,13 @@ export default function StudentDashboardPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function StudentDashboardPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-[#8a7f76]">Loading dashboard...</div>}>
+      <StudentDashboardContent />
+    </Suspense>
   );
 }
