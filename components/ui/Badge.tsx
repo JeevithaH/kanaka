@@ -8,9 +8,9 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
 function Badge({ className, variant = 'primary', ...props }: BadgeProps) {
   const variants = {
     foundational: 'bg-[#defbe6] text-[#198038]',
-    intermediate: 'bg-[#d0e2ff] text-[#0043ce]',
+    intermediate: 'bg-[#e2ddd7] text-[#5f4938]',
     advanced: 'bg-[#e8daff] text-[#6929c4]',
-    primary: 'bg-[#d0e2ff] text-[#0043ce]',
+    primary: 'bg-[#e2ddd7] text-[#5f4938]',
     success: 'bg-[#defbe6] text-[#198038]',
   };
 

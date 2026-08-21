@@ -26,8 +26,8 @@ export async function sendVerificationEmail(toEmail: string, fullName: string, v
         <style>
           body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; color: #161616; }
           .container { max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e0e0e0; padding: 40px; }
-          .header { border-b: 2px solid #0f62fe; padding-bottom: 16px; margin-bottom: 24px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; font-size: 14px; color: #161616; }
-          .button { display: inline-block; background-color: #0f62fe; color: #ffffff !important; padding: 14px 28px; text-decoration: none; font-size: 14px; font-weight: 500; margin: 24px 0; }
+          .header { border-b: 2px solid #80664f; padding-bottom: 16px; margin-bottom: 24px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; font-size: 14px; color: #161616; }
+          .button { display: inline-block; background-color: #80664f; color: #ffffff !important; padding: 14px 28px; text-decoration: none; font-size: 14px; font-weight: 500; margin: 24px 0; }
           .footer { font-size: 12px; color: #8d8d8d; margin-top: 32px; border-t: 1px solid #e0e0e0; padding-top: 16px; }
         </style>
       </head>

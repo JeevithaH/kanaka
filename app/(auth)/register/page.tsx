@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
+import Image from 'next/image';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -85,7 +86,7 @@ export default function RegisterPage() {
               </h1>
               <p className="text-[#525252] text-sm mb-8">
                 Already registered?{' '}
-                <Link href={`/login${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-[#0f62fe] font-medium hover:underline">
+                <Link href={`/login${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-[#80664f] font-medium hover:underline">
                   Log in to your account
                 </Link>
               </p>
@@ -108,7 +109,7 @@ export default function RegisterPage() {
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#0f62fe]"
+                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#80664f]"
                     placeholder="Jane Doe"
                   />
                 </div>
@@ -123,7 +124,7 @@ export default function RegisterPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#0f62fe]"
+                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#80664f]"
                     placeholder="jane@example.com"
                   />
                 </div>
@@ -138,7 +139,7 @@ export default function RegisterPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#0f62fe]"
+                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#80664f]"
                     placeholder="••••••••"
                   />
                   <p className="text-[11px] text-[#525252] mt-1">Must be at least 8 characters with 1 uppercase letter & 1 number.</p>
@@ -154,7 +155,7 @@ export default function RegisterPage() {
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#0f62fe]"
+                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#80664f]"
                     placeholder="••••••••"
                   />
                 </div>
@@ -162,7 +163,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-[#0f62fe] text-white px-4 py-3.5 text-sm mt-4 hover:bg-[#0043ce] transition-colors flex justify-between items-center font-medium disabled:opacity-50"
+                  className="w-full bg-[#80664f] text-white px-4 py-3.5 text-sm mt-4 hover:bg-[#5f4938] transition-colors flex justify-between items-center font-medium disabled:opacity-50"
                 >
                   {isLoading ? 'Creating account...' : 'Create Account & Continue'}
                   {!isLoading && (
@@ -176,20 +177,15 @@ export default function RegisterPage() {
 
             {/* Right Decorative Panel */}
             <div className="hidden lg:block">
-              <div className="relative w-full h-full bg-[#161616] text-white flex items-center justify-center p-12">
-                <div className="max-w-md space-y-6">
-                  <span className="text-xs bg-[#393939] text-[#78a9ff] px-3 py-1 uppercase tracking-wider font-semibold">
-                    Commercial Grade Education
-                  </span>
-                  <h2 className="text-3xl font-light leading-snug">
-                    Unlock professional certificates and industry skills
-                  </h2>
-                  <ul className="space-y-3 text-sm text-[#c6c6c6]">
-                    <li className="flex items-center gap-2">✓ Verified Digital Certificates on Completion</li>
-                    <li className="flex items-center gap-2">✓ Interactive Lesson Player & Module Quizzes</li>
-                    <li className="flex items-center gap-2">✓ ₹1,999 Original → ₹199 Offer Price (90% OFF)</li>
-                    <li className="flex items-center gap-2">✓ Real MongoDB Authentication & Persistence</li>
-                  </ul>
+              <div className="relative w-full h-full bg-[#f3f0ed] flex items-center justify-center p-12 border-l border-[#c8c8c8]">
+                <div className="relative w-72 h-72 mx-auto">
+                  <Image
+                    src="/images/login1.png"
+                    alt="Register Illustration"
+                    fill
+                    priority
+                    className="object-contain"
+                  />
                 </div>
               </div>
             </div>

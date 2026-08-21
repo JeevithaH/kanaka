@@ -113,7 +113,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
     return (
       <div className="min-h-screen bg-white py-16 text-center space-y-4">
         <h1 className="text-2xl font-bold text-[#161616]">Course Not Found</h1>
-        <Link href="/courses" className="text-[#0f62fe] text-sm hover:underline">
+        <Link href="/courses" className="text-[#80664f] text-sm hover:underline">
           Return to course catalog
         </Link>
       </div>
@@ -176,7 +176,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                 <button
                   onClick={handleEnroll}
                   disabled={isEnrolling}
-                  className="w-full bg-[#0f62fe] text-white py-3.5 text-sm font-semibold hover:bg-[#0043ce] transition-colors disabled:opacity-50"
+                  className="w-full bg-[#80664f] text-white py-3.5 text-sm font-semibold hover:bg-[#5f4938] transition-colors disabled:opacity-50"
                 >
                   {isEnrolling ? 'Enrolling...' : 'Enroll Now for ₹199'}
                 </button>

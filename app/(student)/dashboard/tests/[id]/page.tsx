@@ -118,7 +118,7 @@ export default function AssessmentTestPage() {
           <div className="space-y-2">
             <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Assessment Complete</span>
             <h1 className="text-4xl font-black">{testResult.passed ? 'Passed ✓' : 'Needs Review'}</h1>
-            <p className="text-3xl font-black text-blue-600 pt-2">{testResult.percentage}% Score</p>
+            <p className="text-3xl font-black text-stone-600 pt-2">{testResult.percentage}% Score</p>
           </div>
 
           <div className="pt-4 border-t border-slate-200/80 grid grid-cols-2 gap-4 text-xs font-semibold text-slate-600">
@@ -154,7 +154,7 @@ export default function AssessmentTestPage() {
       {/* Top Test Header Bar */}
       <div className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 shadow-soft-sm">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+          <div className="p-2 rounded-xl bg-stone-100 text-stone-600">
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
@@ -165,7 +165,7 @@ export default function AssessmentTestPage() {
 
         {/* Timer */}
         <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-mono font-bold text-slate-700">
-          <Clock className="w-4 h-4 text-blue-600" />
+          <Clock className="w-4 h-4 text-stone-600" />
           <span>{formatTime(timeLeft)} remaining</span>
         </div>
       </div>
@@ -174,7 +174,7 @@ export default function AssessmentTestPage() {
       <div className="p-8 rounded-2xl bg-white border border-slate-200 shadow-soft-md space-y-6">
         
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+          <span className="text-xs font-bold uppercase tracking-wider text-stone-600 bg-stone-100 px-3 py-1 rounded-full border border-stone-300">
             Question {currentQuestion + 1} of {questions.length}
           </span>
           <span className="text-xs text-slate-400 font-medium">5 Marks</span>
@@ -195,7 +195,7 @@ export default function AssessmentTestPage() {
                 onClick={() => handleSelectOption(optIdx)}
                 className={`w-full p-4 rounded-xl border text-left text-sm font-semibold transition-all ${
                   isSelected
-                    ? 'bg-blue-50 border-blue-600 text-blue-900 shadow-soft-sm'
+                    ? 'bg-stone-100 border-stone-600 text-stone-900 shadow-soft-sm'
                     : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                 }`}
               >

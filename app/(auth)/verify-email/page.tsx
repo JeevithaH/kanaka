@@ -53,7 +53,7 @@ export default function VerifyEmailPage() {
         <div className="max-w-md w-full bg-white border border-[#e0e0e0] p-8 shadow-sm text-center">
           {status === 'loading' && (
             <div className="space-y-4">
-              <div className="w-12 h-12 border-4 border-[#0f62fe] border-t-transparent rounded-full animate-spin mx-auto" />
+              <div className="w-12 h-12 border-4 border-[#80664f] border-t-transparent rounded-full animate-spin mx-auto" />
               <h1 className="text-xl font-light text-[#161616]">Verifying Email</h1>
               <p className="text-sm text-[#525252]">{message}</p>
             </div>
@@ -69,7 +69,7 @@ export default function VerifyEmailPage() {
               <div className="pt-4">
                 <Link
                   href="/signin"
-                  className="w-full bg-[#0f62fe] text-white px-4 py-3.5 text-sm font-medium hover:bg-[#0043ce] transition-colors inline-block"
+                  className="w-full bg-[#80664f] text-white px-4 py-3.5 text-sm font-medium hover:bg-[#5f4938] transition-colors inline-block"
                 >
                   Proceed to Sign In
                 </Link>
@@ -87,7 +87,7 @@ export default function VerifyEmailPage() {
               <div className="pt-4 flex flex-col gap-2">
                 <Link
                   href="/signup"
-                  className="w-full border border-[#0f62fe] text-[#0f62fe] px-4 py-3 text-sm font-medium hover:bg-[#0f62fe] hover:text-white transition-colors inline-block"
+                  className="w-full border border-[#80664f] text-[#80664f] px-4 py-3 text-sm font-medium hover:bg-[#80664f] hover:text-white transition-colors inline-block"
                 >
                   Back to Sign Up
                 </Link>

@@ -102,16 +102,16 @@ export default function AdminDashboardPage() {
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-soft-sm space-y-2">
             <div className="flex items-center justify-between text-slate-500">
               <span className="text-xs font-bold uppercase tracking-wider">Published Courses</span>
-              <BookOpen className="w-4 h-4 text-blue-600" />
+              <BookOpen className="w-4 h-4 text-stone-600" />
             </div>
             <p className="text-3xl font-black text-slate-900">{stats.totalCourses}</p>
-            <span className="text-xs text-blue-600 font-semibold">{stats.totalEnrollments} Total Enrollments</span>
+            <span className="text-xs text-stone-600 font-semibold">{stats.totalEnrollments} Total Enrollments</span>
           </div>
 
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-soft-sm space-y-2">
             <div className="flex items-center justify-between text-slate-500">
               <span className="text-xs font-bold uppercase tracking-wider">Internships & Review</span>
-              <Briefcase className="w-4 h-4 text-cyan-600" />
+              <Briefcase className="w-4 h-4 text-stone-600" />
             </div>
             <p className="text-3xl font-black text-slate-900">{stats.internshipParticipants}</p>
             <span className="text-xs text-amber-600 font-semibold flex items-center gap-1">

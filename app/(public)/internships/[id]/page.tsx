@@ -132,7 +132,7 @@ export default function InternshipDetailPage({ params }: { params: { id: string 
           <span className="text-xs font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/30">
             {internship.mode} Program
           </span>
-          <span className="text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full border border-blue-500/30">
+          <span className="text-xs font-bold uppercase tracking-wider bg-stone-1000/20 text-stone-300 px-3 py-1 rounded-full border border-stone-1000/30">
             Free Internship Enrollment
           </span>
         </div>

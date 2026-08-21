@@ -36,7 +36,7 @@ export default function StudentProfilePage() {
       {/* Profile Header Box */}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-soft-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-center gap-5">
-          <div className="w-20 h-20 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-3xl font-black shadow-soft-md shrink-0">
+          <div className="w-20 h-20 rounded-2xl bg-stone-600 text-white flex items-center justify-center text-3xl font-black shadow-soft-md shrink-0">
             {initials}
           </div>
           <div className="space-y-1">
@@ -46,7 +46,7 @@ export default function StudentProfilePage() {
                 Verified Account
               </span>
             </div>
-            <p className="text-sm font-semibold text-blue-600">{user?.email}</p>
+            <p className="text-sm font-semibold text-stone-600">{user?.email}</p>
             <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1 font-medium">
               <span className="flex items-center gap-1 font-mono">
                 <Shield className="w-3.5 h-3.5 text-slate-400" />
@@ -82,7 +82,7 @@ export default function StudentProfilePage() {
             </div>
             <div className="flex justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
               <span className="text-slate-500 font-semibold">Session Status:</span>
-              <span className="font-bold text-blue-600">Active HTTP Session Cookie</span>
+              <span className="font-bold text-stone-600">Active HTTP Session Cookie</span>
             </div>
           </div>
         </div>

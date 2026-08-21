@@ -16,7 +16,7 @@ const TAB_CONTENT: Record<TabType, { bg: string; desc: string; courses: string[]
     topic: 'trending'
   },
   AI: {
-    bg: '#d0e2ff',
+    bg: '#e2ddd7',
     desc: 'Discover learning experiences that can give you a head start in areas like generative AI, machine learning, and more',
     courses: ['AI Fundamentals', 'Machine Learning with Python', 'Responsible AI', 'Deep Learning'],
     linkText: 'See all AI courses',
@@ -37,7 +37,7 @@ const TAB_CONTENT: Record<TabType, { bg: string; desc: string; courses: string[]
     topic: 'data'
   },
   Cloud: {
-    bg: '#bae6ff',
+    bg: '#ded9d4',
     desc: 'Learn cloud computing fundamentals and discover how organizations use it',
     courses: ['Cloud Computing Basics', 'DevOps Fundamentals', 'Kubernetes', 'Infrastructure as Code'],
     linkText: 'See all cloud courses',
@@ -72,7 +72,7 @@ export function HowItWorks() {
               onClick={() => setActiveTab(tab)}
               className={`pb-2 px-4 whitespace-nowrap text-sm font-medium transition-colors border-b-2 ${
                 activeTab === tab
-                  ? 'text-[#161616] border-[#0f62fe]'
+                  ? 'text-[#161616] border-[#80664f]'
                   : 'text-[#525252] border-transparent hover:text-[#161616]'
               }`}
             >
@@ -107,7 +107,7 @@ export function HowItWorks() {
                 <li key={idx} className="border-b border-black/10 last:border-0">
                   <Link 
                     href="/courses" 
-                    className="flex justify-between items-center py-4 text-[#161616] text-sm hover:text-[#0f62fe] group"
+                    className="flex justify-between items-center py-4 text-[#161616] text-sm hover:text-[#80664f] group"
                   >
                     <span>{course}</span>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="opacity-0 group-hover:opacity-100 transition-opacity">

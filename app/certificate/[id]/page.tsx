@@ -50,7 +50,7 @@ export default function CertificateVerificationPage({ params }: { params: { id: 
         <div className="bg-white border border-[#e0e0e0] p-8 max-w-md text-center space-y-4">
           <div className="text-[#da1e28] text-2xl font-bold">⚠️ Unverified Certificate</div>
           <p className="text-sm text-[#525252]">{error || 'This certificate ID could not be validated.'}</p>
-          <Link href="/courses" className="inline-block bg-[#0f62fe] text-white text-xs px-4 py-2.5 font-semibold">
+          <Link href="/courses" className="inline-block bg-[#80664f] text-white text-xs px-4 py-2.5 font-semibold">
             Browse Valid Courses
           </Link>
         </div>
@@ -71,7 +71,7 @@ export default function CertificateVerificationPage({ params }: { params: { id: 
 
         {/* Certificate Card */}
         <div className="bg-white border-8 border-[#161616] p-8 lg:p-14 text-center space-y-8 shadow-xl relative">
-          <div className="text-xs uppercase tracking-[0.2em] font-bold text-[#0f62fe]">
+          <div className="text-xs uppercase tracking-[0.2em] font-bold text-[#80664f]">
             Skyrellac Global Education Network
           </div>
 
@@ -87,7 +87,7 @@ export default function CertificateVerificationPage({ params }: { params: { id: 
             has successfully completed all required curriculum modules and passed the comprehensive examination for
           </p>
 
-          <div className="text-xl lg:text-2xl font-semibold text-[#0f62fe]">
+          <div className="text-xl lg:text-2xl font-semibold text-[#80664f]">
             {cert.courseTitle}
           </div>
 
@@ -104,7 +104,7 @@ export default function CertificateVerificationPage({ params }: { params: { id: 
         </div>
 
         <div className="text-center">
-          <Link href="/dashboard" className="text-xs text-[#0f62fe] font-semibold hover:underline">
+          <Link href="/dashboard" className="text-xs text-[#80664f] font-semibold hover:underline">
             ← Back to Student Dashboard
           </Link>
         </div>

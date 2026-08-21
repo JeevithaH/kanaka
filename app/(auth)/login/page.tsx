@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -78,7 +79,7 @@ export default function LoginPage() {
                 </div>
                 <Link
                   href={`/register${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`}
-                  className="bg-[#0f62fe] text-white text-xs px-3.5 py-2 font-medium hover:bg-[#0043ce] transition-colors shrink-0"
+                  className="bg-[#80664f] text-white text-xs px-3.5 py-2 font-medium hover:bg-[#5f4938] transition-colors shrink-0"
                 >
                   Sign up
                 </Link>
@@ -102,7 +103,7 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#0f62fe]"
+                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#80664f]"
                     placeholder="user@example.com"
                   />
                 </div>
@@ -116,14 +117,14 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#0f62fe]"
+                    className="w-full border-b border-[#161616] bg-[#f4f4f4] px-4 py-3 text-sm focus:outline-none focus:border-b-2 focus:border-[#80664f]"
                     placeholder="••••••••"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-[#0f62fe] text-white px-4 py-3.5 text-sm mt-4 hover:bg-[#0043ce] transition-colors flex justify-between items-center font-medium disabled:opacity-50"
+                  className="w-full bg-[#80664f] text-white px-4 py-3.5 text-sm mt-4 hover:bg-[#5f4938] transition-colors flex justify-between items-center font-medium disabled:opacity-50"
                 >
                   {isLoading ? 'Signing in...' : 'Log In to Dashboard'}
                   {!isLoading && (
@@ -137,7 +138,7 @@ export default function LoginPage() {
               {/* Quick Sign up hint */}
               <div className="mt-8 max-w-sm pt-4 border-t border-[#e0e0e0] text-xs text-[#525252]">
                 Don't have an account yet?{' '}
-                <Link href={`/register${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-[#0f62fe] font-medium hover:underline">
+                <Link href={`/register${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-[#80664f] font-medium hover:underline">
                   Create one now
                 </Link>
               </div>
@@ -145,15 +146,15 @@ export default function LoginPage() {
 
             {/* Right Column Media Panel */}
             <div className="hidden lg:block">
-              <div className="relative w-full h-full bg-[#f4f4f4] flex items-center justify-center p-12">
-                <div className="text-center max-w-sm space-y-4">
-                  <span className="text-xs font-semibold bg-[#e0e0e0] text-[#161616] px-3 py-1 uppercase tracking-wider">
-                    Official Skyrellac Auth
-                  </span>
-                  <h2 className="text-2xl font-light text-[#161616]">Discover your next career move</h2>
-                  <p className="text-[#525252] text-sm leading-relaxed">
-                    Access high-caliber courses, build technical skills, and earn verified credentials stored in MongoDB.
-                  </p>
+              <div className="relative w-full h-full bg-[#f3f0ed] flex items-center justify-center p-12 border-l border-[#c8c8c8]">
+                <div className="relative w-72 h-72 mx-auto">
+                  <Image
+                    src="/images/login2.png"
+                    alt="Login Illustration"
+                    fill
+                    priority
+                    className="object-contain"
+                  />
                 </div>
               </div>
             </div>

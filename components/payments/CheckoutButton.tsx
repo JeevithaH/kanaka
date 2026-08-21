@@ -41,7 +41,7 @@ export function CheckoutButton({ priceId, planName }: CheckoutButtonProps) {
         throw new Error('Stripe failed to initialize');
       }
 
-      const { error: stripeError } = await stripe.redirectToCheckout({
+      const { error: stripeError } = await (stripe as any).redirectToCheckout({
         sessionId,
       });
 
@@ -60,7 +60,7 @@ export function CheckoutButton({ priceId, planName }: CheckoutButtonProps) {
     <button
       onClick={handleCheckout}
       disabled={isLoading}
-      className="w-full bg-[#0f62fe] text-white px-4 py-3.5 text-sm hover:bg-[#0043ce] transition-colors disabled:opacity-50 inline-flex justify-center items-center gap-2"
+      className="w-full bg-[#80664f] text-white px-4 py-3.5 text-sm hover:bg-[#5f4938] transition-colors disabled:opacity-50 inline-flex justify-center items-center gap-2"
     >
       {isLoading ? 'Processing...' : `Subscribe to ${planName}`}
       {!isLoading && (

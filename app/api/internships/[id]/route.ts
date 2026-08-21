@@ -91,7 +91,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }));
 
     if (userTasks.length > 0) {
-      await Task.create(userTasks);
+      await Task.insertMany(userTasks);
     }
 
     // Create notification

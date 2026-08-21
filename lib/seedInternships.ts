@@ -3,9 +3,7 @@ import { Internship } from '@/models/Internship';
 
 export async function seedInternshipsIfEmpty() {
   await connectToDatabase();
-  const count = await Internship.countDocuments();
-  if (count === 0) {
-    const seedData = [
+  const seedData = [
       {
         internshipId: 'ai-ml-engineering-intern',
         title: 'AI & Machine Learning Engineering Intern',
@@ -88,9 +86,64 @@ export async function seedInternshipsIfEmpty() {
           },
         ],
       },
-    ];
+      {
+        internshipId: 'data-analytics-intern',
+        title: 'Data Analytics Intern',
+        description: 'Turn business questions into clear analyses, dashboards, and recommendations using practical datasets.',
+        organization: 'Skyrellac Insights Studio',
+        mode: 'Remote',
+        location: 'Global / Remote',
+        durationWeeks: 10,
+        type: 'Project-based',
+        requiredSkills: ['Excel', 'SQL', 'Data Visualization', 'Power BI'],
+        validationFee: 499,
+        certificateEligible: true,
+        isPublished: true,
+        tasks: [{ taskId: 'data-task-1', title: 'Build an insight dashboard', description: 'Clean a dataset and communicate the important trends in a focused dashboard.', deadlineDays: 10, maxScore: 100 }],
+      },
+      {
+        internshipId: 'cybersecurity-analyst-intern',
+        title: 'Cybersecurity Analyst Intern',
+        description: 'Practise identifying security risks, investigating alerts, and documenting a practical response plan.',
+        organization: 'Skyrellac Security Lab',
+        mode: 'Remote',
+        location: 'Global / Remote',
+        durationWeeks: 8,
+        type: 'Project-based',
+        requiredSkills: ['Network Security', 'Linux', 'Threat Analysis', 'Incident Response'],
+        validationFee: 499,
+        certificateEligible: true,
+        isPublished: true,
+        tasks: [{ taskId: 'security-task-1', title: 'Investigate a security alert', description: 'Review event logs, identify the risk, and prepare an incident response summary.', deadlineDays: 8, maxScore: 100 }],
+      },
+      {
+        internshipId: 'cloud-devops-intern',
+        title: 'Cloud & DevOps Intern',
+        description: 'Learn how modern teams build, deploy, and monitor cloud applications through hands-on delivery tasks.',
+        organization: 'Skyrellac Cloud Works',
+        mode: 'Remote',
+        location: 'Global / Remote',
+        durationWeeks: 10,
+        type: 'Project-based',
+        requiredSkills: ['Cloud Computing', 'Docker', 'CI/CD', 'Git'],
+        validationFee: 499,
+        certificateEligible: true,
+        isPublished: true,
+        tasks: [{ taskId: 'cloud-task-1', title: 'Create a delivery pipeline', description: 'Containerize a small app and describe a reliable CI/CD release workflow.', deadlineDays: 10, maxScore: 100 }],
+      },
+  ];
 
-    await Internship.insertMany(seedData);
-    console.log('Seeded 2 initial internship programs into MongoDB.');
+  const result = await Internship.bulkWrite(
+    seedData.map((program) => ({
+      updateOne: {
+        filter: { internshipId: program.internshipId },
+        update: { $setOnInsert: program as any },
+        upsert: true,
+      },
+    }))
+  );
+
+  if (result.upsertedCount > 0) {
+    console.log(`Seeded ${result.upsertedCount} missing internship program(s).`);
   }
 }

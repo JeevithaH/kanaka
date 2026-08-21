@@ -1,85 +1,353 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+
+type Category = 'Most Popular' | 'AI' | 'Data Science' | 'Cybersecurity' | 'Cloud' | 'Web Dev';
+
+const CATEGORIES: Category[] = ['Most Popular', 'AI', 'Data Science', 'Cybersecurity', 'Cloud', 'Web Dev'];
+
+interface Course {
+  id: number;
+  title: string;
+  provider: string;
+  rating: number;
+  reviews: string;
+  level: string;
+  type: string;
+  skills: string[];
+  duration: string;
+  isFree: boolean;
+  category: Category[];
+  image: string;
+}
+
+const COURSES: Course[] = [
+  {
+    id: 1,
+    title: 'AI Fundamentals for Everyone',
+    provider: 'Skyrellac',
+    rating: 4.8,
+    reviews: '12,453',
+    level: 'Beginner',
+    type: 'Course',
+    skills: ['Machine Learning', 'AI Ethics', 'Neural Networks'],
+    duration: '3 months',
+    isFree: true,
+    category: ['Most Popular', 'AI'],
+    image: '/images/ai.jpg',
+  },
+  {
+    id: 2,
+    title: 'Data Science & Analytics Bootcamp',
+    provider: 'Skyrellac',
+    rating: 4.7,
+    reviews: '9,812',
+    level: 'Intermediate',
+    type: 'Professional Certificate',
+    skills: ['Python', 'SQL', 'Data Visualization'],
+    duration: '2 months',
+    isFree: true,
+    category: ['Most Popular', 'Data Science'],
+    image: '/images/data_science.jpg',
+  },
+  {
+    id: 3,
+    title: 'Cybersecurity Essentials',
+    provider: 'Skyrellac',
+    rating: 4.9,
+    reviews: '7,234',
+    level: 'Beginner',
+    type: 'Course',
+    skills: ['Network Security', 'Ethical Hacking', 'Firewalls'],
+    duration: '2 months',
+    isFree: true,
+    category: ['Most Popular', 'Cybersecurity'],
+    image: '/images/cyber_security.jpg',
+  },
+  {
+    id: 4,
+    title: 'Cloud Computing with AWS & Azure',
+    provider: 'Skyrellac',
+    rating: 4.6,
+    reviews: '5,678',
+    level: 'Intermediate',
+    type: 'Specialization',
+    skills: ['AWS', 'Azure', 'DevOps', 'Kubernetes'],
+    duration: '4 months',
+    isFree: true,
+    category: ['Most Popular', 'Cloud'],
+    image: '/images/cloud_security.jpg',
+  },
+  {
+    id: 5,
+    title: 'Generative AI & Prompt Engineering',
+    provider: 'Skyrellac',
+    rating: 4.9,
+    reviews: '15,002',
+    level: 'Beginner',
+    type: 'Course',
+    skills: ['ChatGPT', 'LLMs', 'Prompt Design'],
+    duration: '1 month',
+    isFree: true,
+    category: ['AI', 'Most Popular'],
+    image: '/images/genai.jpg',
+  },
+  {
+    id: 6,
+    title: 'Full-Stack Web Development',
+    provider: 'Skyrellac',
+    rating: 4.7,
+    reviews: '8,321',
+    level: 'Beginner',
+    type: 'Professional Certificate',
+    skills: ['React', 'Node.js', 'MongoDB', 'REST APIs'],
+    duration: '6 months',
+    isFree: true,
+    category: ['Web Dev', 'Most Popular'],
+    image: '/images/web.jpg',
+  },
+  {
+    id: 7,
+    title: 'Machine Learning with Python',
+    provider: 'Skyrellac',
+    rating: 4.8,
+    reviews: '10,456',
+    level: 'Intermediate',
+    type: 'Specialization',
+    skills: ['Scikit-learn', 'TensorFlow', 'Data Wrangling'],
+    duration: '5 months',
+    isFree: true,
+    category: ['AI', 'Data Science'],
+    image: '/images/ai.jpg',
+  },
+  {
+    id: 8,
+    title: 'SQL for Data Analysis',
+    provider: 'Skyrellac',
+    rating: 4.6,
+    reviews: '6,123',
+    level: 'Beginner',
+    type: 'Course',
+    skills: ['SQL', 'PostgreSQL', 'Data Querying'],
+    duration: '2 months',
+    isFree: true,
+    category: ['Data Science'],
+    image: '/images/data_science.jpg',
+  },
+  {
+    id: 9,
+    title: 'UX Design for Digital Products',
+    provider: 'Skyrellac',
+    rating: 4.8,
+    reviews: '4,920',
+    level: 'Beginner',
+    type: 'Course',
+    skills: ['User Research', 'Wireframing', 'Accessibility'],
+    duration: '6 weeks',
+    isFree: true,
+    category: ['Most Popular', 'Web Dev'],
+    image: '/images/ux.jpg',
+  },
+  {
+    id: 10,
+    title: 'Data Storytelling with Dashboards',
+    provider: 'Skyrellac',
+    rating: 4.7,
+    reviews: '5,416',
+    level: 'Beginner',
+    type: 'Course',
+    skills: ['Power BI', 'Data Visualization', 'Business Insights'],
+    duration: '5 weeks',
+    isFree: true,
+    category: ['Most Popular', 'Data Science'],
+    image: '/images/data_science.jpg',
+  },
+  {
+    id: 11,
+    title: 'Cloud Security Foundations',
+    provider: 'Skyrellac',
+    rating: 4.8,
+    reviews: '3,876',
+    level: 'Intermediate',
+    type: 'Specialization',
+    skills: ['Identity Access', 'Risk Management', 'Cloud Security'],
+    duration: '8 weeks',
+    isFree: true,
+    category: ['Most Popular', 'Cloud', 'Cybersecurity'],
+    image: '/images/cloud_security.jpg',
+  },
+  {
+    id: 12,
+    title: 'AI for Business Decision Making',
+    provider: 'Skyrellac',
+    rating: 4.9,
+    reviews: '6,218',
+    level: 'Beginner',
+    type: 'Course',
+    skills: ['Generative AI', 'Strategy', 'Responsible AI'],
+    duration: '4 weeks',
+    isFree: true,
+    category: ['Most Popular', 'AI'],
+    image: '/images/genai.jpg',
+  },
+];
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <svg
+          key={star}
+          className={`w-3.5 h-3.5 ${star <= Math.round(rating) ? 'text-[#f5a623]' : 'text-[#d6d6d6]'}`}
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+      ))}
+    </div>
+  );
+}
+
+function CourseCard({ course }: { course: Course }) {
+  return (
+    <Link href="/courses" className="group bg-white border border-[#c8c8c8] overflow-hidden hover:border-[#80664f] hover:shadow-md transition-all duration-200 flex flex-col">
+      {/* Course Thumbnail */}
+      <div className="relative w-full aspect-video overflow-hidden bg-[#f4f4f4]">
+        <Image
+          src={course.image}
+          alt={course.title}
+          fill
+          className="object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+        {/* Type Badge */}
+        <span className="absolute top-2 left-2 bg-white text-[#80664f] text-[10px] font-bold px-2 py-0.5 rounded border border-[#80664f]">
+          {course.type}
+        </span>
+      </div>
+
+      {/* Card Body */}
+      <div className="p-4 flex flex-col flex-grow">
+        {/* Provider */}
+        <div className="flex items-center gap-2 mb-2">
+        <div className="w-5 h-5 relative overflow-hidden">
+            <Image src={course.image} alt={course.provider} fill className="object-cover" />
+          </div>
+          <span className="text-xs text-[#595959] font-medium">{course.provider}</span>
+        </div>
+
+        {/* Title */}
+        <h3 className="text-sm font-bold text-[#1f1f1f] mb-2 leading-snug line-clamp-2 group-hover:text-[#80664f] transition-colors">
+          {course.title}
+        </h3>
+
+        {/* Skills */}
+        <p className="text-xs text-[#595959] mb-3 line-clamp-1">
+          Skills: {course.skills.join(', ')}
+        </p>
+
+        {/* Rating */}
+        <div className="flex items-center gap-1.5 mb-3">
+          <span className="text-sm font-bold text-[#1f1f1f]">{course.rating}</span>
+          <StarRating rating={course.rating} />
+          <span className="text-xs text-[#595959]">({course.reviews})</span>
+        </div>
+
+        {/* Level + Duration */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <span className="text-xs text-[#595959] border border-[#c8c8c8] px-2 py-0.5">
+            {course.level}
+          </span>
+          <span className="text-xs text-[#595959]">· {course.duration}</span>
+        </div>
+
+        {/* Enroll Button */}
+        <div className="mt-auto">
+          {course.isFree && (
+            <span className="block text-[10px] text-[#80664f] font-semibold mb-1.5">
+              Free to enroll
+            </span>
+          )}
+          <span className="w-full bg-[#80664f] group-hover:bg-[#5f4938] text-white text-sm font-semibold py-2 text-center transition-colors">
+            Enroll for Free
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 export function FeaturedCoursesSection() {
+  const [activeCategory, setActiveCategory] = useState<Category>('Most Popular');
+
+  const filtered = COURSES.filter((c) => c.category.includes(activeCategory));
+
   return (
-    <>
-      {/* Stories Section */}
-      <section className="bg-[#f4f4f4] py-12 lg:py-20">
-        <div className="max-w-[1584px] mx-auto px-4">
-          <div className="mb-12">
-            <h2 className="text-[#161616] font-semibold text-[1.75rem] mb-2">Real stories. Real impact</h2>
-            <p className="text-[#525252] text-base">See how these learners and educators were able to advance their careers with AI and tech skills.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white p-8 border border-[#e0e0e0]">
-              <div className="aspect-[16/9] bg-[#e0e0e0] w-full mb-6"></div>
-              <h3 className="text-[#161616] font-semibold text-lg mb-2">Learner Success Story</h3>
-              <p className="text-[#525252] text-sm">"Skyrellac helped me transition into a tech career by providing hands-on experience and industry-recognized credentials."</p>
-            </div>
-            <div className="bg-white p-8 border border-[#e0e0e0]">
-              <div className="aspect-[16/9] bg-[#e0e0e0] w-full mb-6"></div>
-              <h3 className="text-[#161616] font-semibold text-lg mb-2">Educator Success Story</h3>
-              <p className="text-[#525252] text-sm">"The platform's resources have been invaluable in preparing my students for the modern workforce."</p>
-            </div>
-          </div>
-        </div>
-      </section>
+    <section className="bg-[#f5f2ef] py-14 lg:py-20 border-y border-[#c8c8c8]">
+      <div className="max-w-[1584px] mx-auto px-4 lg:px-8">
 
-      {/* Events Section */}
-      <section className="bg-white py-12 lg:py-20 border-b border-[#e0e0e0]">
-        <div className="max-w-[1584px] mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-4">
-            <h2 className="text-[#161616] font-semibold text-[1.75rem]">Join free upcoming learning events</h2>
-            <Link href="/events" className="text-[#0f62fe] text-base hover:underline inline-flex items-center gap-2">
-              View all events
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M9.3 3.7 13.1 7.5 1 7.5 1 8.5 13.1 8.5 9.3 12.3 10 13 15 8 10 3z"/>
-              </svg>
-            </Link>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+          <div>
+            <p className="text-xs font-semibold tracking-[0.14em] text-[#5f4938] mb-3">START WHERE YOU ARE</p>
+            <h2 className="text-3xl lg:text-[2.5rem] leading-tight font-semibold text-[#161616] tracking-[-0.02em]">
+              Find a course that feels made for you
+            </h2>
+            <p className="text-sm text-[#595959] mt-1">
+              Practical learning for the work you want to do next.
+            </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { title: 'Make agentic AI work for you', date: 'August 18, 2026', time: '12:00 - 13:00 PM ET' },
-              { title: 'Kickstart your Data and AI journeys', date: 'August 19, 2026', time: '11:00 - 12:00 PM ET' },
-              { title: 'AI racing league – Build with AI', date: 'September 28, 2026', time: '3:00 PM - 4:00 PM GMT' }
-            ].map((event, idx) => (
-              <div key={idx} className="bg-white border border-[#e0e0e0] p-6 hover:shadow-sm transition-shadow flex flex-col h-full">
-                <div className="flex gap-2 mb-4">
-                  <span className="bg-[#f4f4f4] text-[#525252] text-xs px-2 py-1">Adult learners</span>
-                </div>
-                <h3 className="text-[#161616] font-semibold text-lg mb-6 flex-grow">{event.title}</h3>
-                <div className="text-sm text-[#525252] space-y-1">
-                  <p><span className="font-semibold text-[#161616]">Type:</span> Virtual</p>
-                  <p><span className="font-semibold text-[#161616]">Date:</span> {event.date}</p>
-                  <p><span className="font-semibold text-[#161616]">Time:</span> {event.time}</p>
-                  <p><span className="font-semibold text-[#161616]">Language:</span> English</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <Link
+            href="/courses"
+            className="text-[#80664f] text-sm font-semibold hover:underline inline-flex items-center gap-1 shrink-0"
+          >
+            View all courses
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M9.3 3.7 13.1 7.5 1 7.5 1 8.5 13.1 8.5 9.3 12.3 10 13 15 8 10 3z" />
+            </svg>
+          </Link>
         </div>
-      </section>
 
-      {/* News Section */}
-      <section className="bg-white py-12 lg:py-20 border-b border-[#e0e0e0]">
-        <div className="max-w-[1584px] mx-auto px-4">
-          <h2 className="text-[#161616] font-semibold text-[1.75rem] mb-12">Building a new global workforce</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { title: 'Skyrellac Launches Global AI Builders Challenge for University Students' },
-              { title: 'Skyrellac and Mission 44 Join Forces to Fast-Track AI Skills' },
-              { title: 'Skyrellac Commits to Skill 30 Million People Globally by 2030' }
-            ].map((news, idx) => (
-              <div key={idx} className="group cursor-pointer flex flex-col">
-                <div className="aspect-square bg-[#e0e0e0] w-full mb-4"></div>
-                <p className="text-[#525252] text-xs mb-1 font-semibold uppercase tracking-wider">Newsroom</p>
-                <h3 className="text-[#161616] text-base group-hover:text-[#0f62fe] group-hover:underline">{news.title}</h3>
-              </div>
-            ))}
-          </div>
+        {/* Category Tabs */}
+        <div className="flex overflow-x-auto gap-2 pb-2 mb-8 scrollbar-hide">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+            className={`whitespace-nowrap px-4 py-2 text-sm font-semibold border transition-colors ${
+                activeCategory === cat
+                  ? 'bg-[#80664f] text-white border-[#80664f]'
+                  : 'bg-white text-[#595959] border-[#e0e0e0] hover:border-[#80664f] hover:text-[#80664f]'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
-      </section>
-    </>
+
+        {/* Course Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {filtered.map((course) => (
+            <CourseCard key={course.id} course={course} />
+          ))}
+        </div>
+
+        {/* Bottom CTA */}
+        <div className="mt-10 text-center">
+          <Link
+            href="/courses"
+            className="inline-flex items-center gap-2 border-2 border-[#80664f] text-[#80664f] font-semibold px-8 py-3 rounded hover:bg-[#80664f] hover:text-white transition-colors text-sm"
+          >
+            Explore all courses
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M9.3 3.7 13.1 7.5 1 7.5 1 8.5 13.1 8.5 9.3 12.3 10 13 15 8 10 3z" />
+            </svg>
+          </Link>
+        </div>
+
+      </div>
+    </section>
   );
 }

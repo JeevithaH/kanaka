@@ -252,7 +252,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
                         }}
                         className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition-colors ${
                           isActive
-                            ? 'bg-[#0f62fe] text-white font-semibold'
+                            ? 'bg-[#80664f] text-white font-semibold'
                             : 'text-[#c6c6c6] hover:bg-[#262626]'
                         }`}
                       >
@@ -275,8 +275,8 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
                     setAnswers(new Array(course.tests[0].questions.length).fill(-1));
                     setTestResult(null);
                   }}
-                  className={`w-full text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center justify-between border border-[#0f62fe] ${
-                    isTestMode ? 'bg-[#0f62fe] text-white' : 'text-[#78a9ff] hover:bg-[#0f62fe]/10'
+                  className={`w-full text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center justify-between border border-[#80664f] ${
+                    isTestMode ? 'bg-[#80664f] text-white' : 'text-[#78a9ff] hover:bg-[#80664f]/10'
                   }`}
                 >
                   <span>📝 Take Certification Test</span>
@@ -293,7 +293,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="flex items-center justify-between border-b border-[#393939] pb-4">
                 <div>
-                  <span className="text-xs text-[#0f62fe] uppercase tracking-wider font-semibold">
+                  <span className="text-xs text-[#80664f] uppercase tracking-wider font-semibold">
                     {activeLesson?.contentType} Lesson
                   </span>
                   <h1 className="text-2xl lg:text-3xl font-light mt-1">{activeLesson?.title}</h1>
@@ -310,7 +310,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
               <div className="bg-[#161616] border border-[#393939] p-6 space-y-4">
                 <div className="aspect-video bg-[#000000] border border-[#393939] flex items-center justify-center p-8">
                   <div className="text-center space-y-3">
-                    <div className="w-16 h-16 rounded-full bg-[#0f62fe] flex items-center justify-center mx-auto text-white text-2xl font-bold">
+                    <div className="w-16 h-16 rounded-full bg-[#80664f] flex items-center justify-center mx-auto text-white text-2xl font-bold">
                       ▶
                     </div>
                     <p className="text-sm font-semibold text-white">Interactive Lesson Video Stream</p>
@@ -328,7 +328,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
             /* Certification Test Runner */
             <div className="max-w-3xl mx-auto space-y-8 bg-[#161616] border border-[#393939] p-8">
               <div>
-                <span className="text-xs bg-[#0f62fe] text-white px-2 py-0.5 uppercase font-semibold">
+                <span className="text-xs bg-[#80664f] text-white px-2 py-0.5 uppercase font-semibold">
                   Official Exam
                 </span>
                 <h1 className="text-2xl font-light mt-2">{activeTest?.title}</h1>
@@ -346,7 +346,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
                   </div>
 
                   {testResult.certificate && (
-                    <div className="p-4 bg-[#0f62fe]/20 border border-[#0f62fe] space-y-3">
+                    <div className="p-4 bg-[#80664f]/20 border border-[#80664f] space-y-3">
                       <h3 className="text-sm font-bold text-white">🏆 Digital Certificate Issued!</h3>
                       <p className="text-xs text-[#c6c6c6]">Certificate ID: {testResult.certificate.certificateId}</p>
                       <Link
@@ -379,7 +379,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
                             key={optIdx}
                             className={`flex items-center gap-3 p-3 text-xs border cursor-pointer transition-colors ${
                               answers[qIdx] === optIdx
-                                ? 'bg-[#0f62fe] border-[#0f62fe] text-white font-medium'
+                                ? 'bg-[#80664f] border-[#80664f] text-white font-medium'
                                 : 'border-[#393939] bg-[#262626] text-[#c6c6c6] hover:bg-[#393939]'
                             }`}
                           >
@@ -400,7 +400,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
                   <button
                     onClick={submitTest}
                     disabled={isSubmitting || answers.includes(-1)}
-                    className="w-full bg-[#0f62fe] text-white py-3.5 text-sm font-semibold hover:bg-[#0043ce] transition-colors disabled:opacity-50"
+                    className="w-full bg-[#80664f] text-white py-3.5 text-sm font-semibold hover:bg-[#5f4938] transition-colors disabled:opacity-50"
                   >
                     {isSubmitting ? 'Grading test...' : 'Submit Assessment for Grading'}
                   </button>

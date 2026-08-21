@@ -14,8 +14,8 @@ module.exports = {
           subtle: '#f4f4f4',
         },
         primary: {
-          DEFAULT: '#0f62fe',
-          hover: '#0043ce',
+          DEFAULT: '#80664f',
+          hover: '#5f4938',
         },
         text: {
           primary: '#161616',

@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   title: 'Skyrellac — Learn. Build. Prove. Launch.',
   description: 'Build in-demand skills in AI, cybersecurity, data, and more. Free learning from a global leader in education and technology.',
   keywords: ['Skyrellac', 'Education', 'Skills', 'Courses', 'Internships', 'Certifications'],
+  icons: {
+    icon: '/images/logo.jpeg',
+    shortcut: '/images/logo.jpeg',
+    apple: '/images/logo.jpeg',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

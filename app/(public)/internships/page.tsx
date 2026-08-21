@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, MapPin, Clock, ArrowRight, ShieldCheck } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { ArrowRight, Clock, MapPin, Search, SlidersHorizontal } from 'lucide-react';
 
 interface InternshipData {
   _id: string;
@@ -16,9 +15,10 @@ interface InternshipData {
   durationWeeks: number;
   type: string;
   requiredSkills: string[];
-  validationFee: number;
   certificateEligible: boolean;
 }
+
+const CARD_TONES = ['bg-[#e4d9cf]', 'bg-[#d9dcda]', 'bg-[#e8e0d8]', 'bg-[#d5d4d1]', 'bg-[#e1dbd5]'];
 
 export default function InternshipsPage() {
   const [internships, setInternships] = useState<InternshipData[]>([]);
@@ -29,13 +29,11 @@ export default function InternshipsPage() {
   useEffect(() => {
     async function loadInternships() {
       try {
-        const res = await fetch('/api/internships');
-        const data = await res.json();
-        if (data.internships) {
-          setInternships(data.internships);
-        }
-      } catch (err) {
-        console.error('Failed to load internships:', err);
+        const response = await fetch('/api/internships');
+        const data = await response.json();
+        setInternships(data.internships ?? []);
+      } catch (error) {
+        console.error('Failed to load internships:', error);
       } finally {
         setIsLoading(false);
       }
@@ -43,144 +41,82 @@ export default function InternshipsPage() {
     loadInternships();
   }, []);
 
-  const filteredInternships = internships.filter((item) => {
-    const matchesSearch =
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.organization.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.requiredSkills?.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const matchesMode = selectedMode === 'All' || item.mode === selectedMode;
-
-    return matchesSearch && matchesMode;
-  });
+  const displayedInternships = internships
+    .filter((internship) => {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = !query || internship.title.toLowerCase().includes(query) || internship.organization.toLowerCase().includes(query) || internship.requiredSkills.some((skill) => skill.toLowerCase().includes(query));
+      return matchesSearch && (selectedMode === 'All' || internship.mode === selectedMode);
+    })
+    .slice(0, 5);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10 bg-white min-h-screen font-sans">
-      {/* Header */}
-      <div className="space-y-3">
-        <span className="text-xs font-bold uppercase tracking-widest text-emerald-700 bg-emerald-50 px-4 py-1.5 rounded-full border border-emerald-200">
-          Skyrellac Career Launchpad
-        </span>
-        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-          Verified Internship Programs
-        </h1>
-        <p className="text-base text-slate-600 max-w-2xl font-normal">
-          Join free industry-aligned internships. Complete assigned practical tasks, gain real experience, and optional paid validation for official credentials.
-        </p>
-      </div>
-
-      {/* Search & Filter Bar */}
-      <div className="glass-panel p-4 rounded-2xl border border-slate-200 bg-slate-50 flex flex-col md:flex-row gap-4 justify-between items-center shadow-soft-sm">
-        <div className="relative w-full md:w-96">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search internships by role, company, or skill..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-blue-600 shadow-soft-sm transition-colors"
-          />
-        </div>
-
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <select
-            value={selectedMode}
-            onChange={(e) => setSelectedMode(e.target.value)}
-            className="bg-white border border-slate-200 text-sm font-semibold text-slate-700 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-600 shadow-soft-sm"
-          >
-            <option value="All">Mode: All Modes</option>
-            <option value="Remote">Remote</option>
-            <option value="Hybrid">Hybrid</option>
-            <option value="On-site">On-site</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Internships List */}
-      {isLoading ? (
-        <div className="p-12 text-center text-sm text-slate-500 bg-slate-50 rounded-2xl border border-slate-200">
-          Loading active internship opportunities...
-        </div>
-      ) : filteredInternships.length === 0 ? (
-        <div className="p-12 text-center space-y-2 bg-slate-50 rounded-2xl border border-slate-200">
-          <p className="text-base font-semibold text-slate-800">No internship programs found matching your search.</p>
-          <p className="text-xs text-slate-500">Try adjusting your search terms or filters.</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {filteredInternships.map((internship) => (
-            <div
-              key={internship._id}
-              className="glass-card rounded-2xl p-6 space-y-5 border border-slate-200 bg-white shadow-soft-sm hover:border-emerald-400 hover:shadow-soft-xl transition-all group"
-            >
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                      {internship.mode}
-                    </span>
-                    <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
-                      Free Enrollment
-                    </span>
-                    <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                      {internship.durationWeeks} Weeks Duration
-                    </span>
-                  </div>
-
-                  <h2 className="text-xl font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
-                    {internship.title}
-                  </h2>
-
-                  <div className="flex items-center gap-4 text-xs text-slate-500 font-semibold">
-                    <span className="text-slate-900">{internship.organization}</span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5" />
-                      {internship.location}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                  <Link href={`/internships/${internship.internshipId}`}>
-                    <Button variant="glow" size="md" className="w-full sm:w-auto">
-                      <span>View & Join Internship</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-
-              <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed">
-                {internship.description}
-              </p>
-
-              {/* Required Skills & Fee pill */}
-              <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                {internship.requiredSkills && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-slate-400 font-semibold mr-1">Skills:</span>
-                    {internship.requiredSkills.map((skill, idx) => (
-                      <span
-                        key={idx}
-                        className="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-md border border-emerald-200 font-medium"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>Validation Fee: <strong>₹{internship.validationFee || 499}</strong> (Optional)</span>
-                </div>
-              </div>
+    <main className="min-h-screen bg-white">
+      <section className="bg-[#efebe7] border-b border-[#c8c8c8]">
+        <div className="max-w-[1584px] mx-auto px-4 lg:px-8 pt-12 pb-10 lg:pt-16 lg:pb-12">
+          <p className="text-xs font-semibold tracking-[0.14em] text-[#5f4938]">SKYRELLAC CAREER LAUNCHPAD</p>
+          <div className="mt-4 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+            <div>
+              <h1 className="text-4xl lg:text-[3.5rem] leading-[1.05] tracking-[-0.03em] font-semibold text-[#161616]">Internships that turn learning into proof</h1>
+              <p className="mt-5 max-w-2xl text-[#525252] text-base lg:text-lg leading-7">Explore five guided internship programs. Build practical projects, practise the skills employers ask for, and create work that is yours to show.</p>
             </div>
-          ))}
+            <div className="border-l-4 border-[#80664f] pl-4 shrink-0">
+              <p className="text-2xl font-semibold text-[#161616]">5 programs</p>
+              <p className="mt-1 text-sm text-[#525252]">Remote-friendly · project-based</p>
+            </div>
+          </div>
         </div>
-      )}
-    </div>
+      </section>
+
+      <section className="max-w-[1584px] mx-auto px-4 lg:px-8 py-10 lg:py-14">
+        <div className="border border-[#c8c8c8] bg-white p-4 flex flex-col md:flex-row md:items-center gap-3 mb-10">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#525252]" />
+            <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search by internship role or skill" className="w-full h-11 pl-11 pr-4 bg-[#f4f4f4] border border-transparent focus:border-[#80664f] focus:outline-none text-sm text-[#161616] placeholder:text-[#6f6f6f]" />
+          </div>
+          <div className="flex items-center gap-3">
+            <SlidersHorizontal className="w-4 h-4 text-[#525252]" aria-hidden="true" />
+            <label htmlFor="mode" className="text-sm font-medium text-[#393939]">Format</label>
+            <select id="mode" value={selectedMode} onChange={(event) => setSelectedMode(event.target.value)} className="h-11 px-3 border border-[#8d8d8d] bg-white text-sm text-[#161616] focus:outline-none focus:border-[#80664f]">
+              <option value="All">All formats</option>
+              <option value="Remote">Remote</option>
+              <option value="Hybrid">Hybrid</option>
+              <option value="On-site">On-site</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-baseline justify-between gap-4 mb-6">
+          <h2 className="text-2xl font-semibold text-[#161616]">Explore internship programs</h2>
+          {!isLoading && <p className="text-sm text-[#525252]">{displayedInternships.length} of 5 programs</p>}
+        </div>
+
+        {isLoading ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">{Array.from({ length: 5 }).map((_, index) => <div key={index} className="border border-[#c8c8c8] animate-pulse"><div className="h-32 bg-[#e0e0e0]" /><div className="p-5 space-y-3"><div className="h-3 bg-[#e0e0e0] w-2/5" /><div className="h-6 bg-[#e0e0e0]" /><div className="h-4 bg-[#e0e0e0]" /></div></div>)}</div>
+        ) : displayedInternships.length === 0 ? (
+          <div className="border border-[#c8c8c8] bg-[#f4f4f4] p-10 text-center"><p className="font-medium text-[#161616]">No internships match this search.</p><button type="button" onClick={() => { setSearchQuery(''); setSelectedMode('All'); }} className="mt-3 text-sm font-semibold text-[#80664f] hover:underline">Clear filters</button></div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {displayedInternships.map((internship, index) => (
+              <Link key={internship._id} href={`/internships/${internship.internshipId}`} className="group min-h-[380px] flex flex-col bg-white border border-[#c8c8c8] hover:border-[#80664f] hover:shadow-lg transition-all duration-200">
+                <div className={`${CARD_TONES[index % CARD_TONES.length]} h-32 p-4 flex items-start justify-between`}>
+                  <span className="text-xs font-semibold text-[#393939]">{internship.organization}</span>
+                  <span className="bg-white/80 border border-[#8d8d8d] px-2.5 py-1 text-xs font-semibold text-[#5f4938]">{internship.mode}</span>
+                </div>
+                <div className="p-5 flex flex-col flex-1">
+                  <p className="text-xs text-[#525252]">{internship.type} internship</p>
+                  <h3 className="mt-2 text-lg leading-6 font-semibold text-[#161616] group-hover:text-[#80664f] transition-colors">{internship.title}</h3>
+                  <p className="mt-4 text-sm leading-6 text-[#525252] line-clamp-3">{internship.description}</p>
+                  <p className="mt-4 text-xs leading-5 text-[#525252]"><span className="font-semibold text-[#393939]">Skills:</span> {internship.requiredSkills.slice(0, 3).join(' · ')}</p>
+                  <div className="mt-auto pt-5 border-t border-[#e0e0e0] space-y-3">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#525252]"><span className="inline-flex gap-1 items-center"><Clock className="w-3.5 h-3.5" />{internship.durationWeeks} weeks</span><span className="inline-flex gap-1 items-center"><MapPin className="w-3.5 h-3.5" />{internship.location}</span></div>
+                    <span className="flex justify-between items-center text-sm font-semibold text-[#80664f]">View program <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
