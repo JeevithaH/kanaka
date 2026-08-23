@@ -45,7 +45,7 @@ export async function POST(req: Request) {
 
     // Total lessons count
     let totalLessonsCount = 0;
-    course.modules.forEach((mod) => {
+    course.modules.forEach((mod: any) => {
       totalLessonsCount += mod.lessons.length;
     });
     if (totalLessonsCount === 0) totalLessonsCount = course.lessonCount || 1;

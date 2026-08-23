@@ -40,11 +40,11 @@ export async function GET(req: Request) {
     ]);
 
     // Enrich Course Enrollments with course meta
-    const courseIds = courseEnrollments.map((e) => e.courseId);
+    const courseIds = courseEnrollments.map((e: any) => e.courseId);
     const courses = await Course.find({ courseId: { $in: courseIds } });
-    const courseMap = new Map(courses.map((c) => [c.courseId, c]));
+    const courseMap = new Map<string, any>((courses as any[]).map((c: any) => [c.courseId, c]));
 
-    const enrichedCourseEnrollments = courseEnrollments.map((e) => {
+    const enrichedCourseEnrollments = courseEnrollments.map((e: any) => {
       const course = courseMap.get(e.courseId);
       const totalLessons = course?.lessonCount || 12;
       const completedCount = (e.completedLessons || []).length;
@@ -69,11 +69,11 @@ export async function GET(req: Request) {
     });
 
     // Enrich Internship Enrollments with internship meta
-    const internshipIds = internshipEnrollments.map((ie) => ie.internshipId);
+    const internshipIds = internshipEnrollments.map((ie: any) => ie.internshipId);
     const internships = await Internship.find({ internshipId: { $in: internshipIds } });
-    const internshipMap = new Map(internships.map((i) => [i.internshipId, i]));
+    const internshipMap = new Map<string, any>((internships as any[]).map((i: any) => [i.internshipId, i]));
 
-    const enrichedInternshipEnrollments = internshipEnrollments.map((ie) => {
+    const enrichedInternshipEnrollments = internshipEnrollments.map((ie: any) => {
       const internship = internshipMap.get(ie.internshipId);
       return {
         _id: ie._id,

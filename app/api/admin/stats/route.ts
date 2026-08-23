@@ -41,7 +41,7 @@ export async function GET(req: Request) {
       User.find({ role: 'student' }).sort({ createdAt: -1 }).limit(5).select('-passwordHash'),
     ]);
 
-    const totalRevenue = payments.reduce((acc, p) => acc + (p.amount || 0), 0);
+    const totalRevenue = payments.reduce((acc: number, p: any) => acc + (p.amount || 0), 0);
 
     return NextResponse.json({
       stats: {

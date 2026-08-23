@@ -34,14 +34,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Course not found.' }, { status: 404 });
     }
 
-    const test = course.tests.find((t) => t.id === testId);
+    const test = course.tests.find((t: any) => t.id === testId);
     if (!test) {
       return NextResponse.json({ error: 'Test not found.' }, { status: 404 });
     }
 
     // Grade test
     let correctCount = 0;
-    test.questions.forEach((q, idx) => {
+    test.questions.forEach((q: any, idx: number) => {
       if (answers[idx] === q.correctOptionIndex) {
         correctCount++;
       }
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     // Update Enrollment test status
     const enrollment = await Enrollment.findOne({ userId: user.id, courseId });
     if (enrollment) {
-      const existingTestIdx = enrollment.testStatus.findIndex((t) => t.testId === testId);
+      const existingTestIdx = enrollment.testStatus.findIndex((t: any) => t.testId === testId);
       const testRecord = {
         testId,
         testTitle: test.title,

@@ -11,7 +11,7 @@ export async function GET(req: Request) {
     await connectToDatabase();
 
     const payments = await Payment.find().sort({ createdAt: -1 });
-    const totalRevenue = payments.reduce((acc, p) => acc + (p.paymentStatus === 'completed' ? p.amount : 0), 0);
+    const totalRevenue = payments.reduce((acc: number, p: any) => acc + (p.paymentStatus === 'completed' ? p.amount : 0), 0);
 
     return NextResponse.json({ payments, totalRevenue });
   } catch (error: any) {

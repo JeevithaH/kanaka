@@ -26,13 +26,13 @@ export async function GET(req: Request) {
     const enrollments = await Enrollment.find({ userId: user.id }).sort({ createdAt: -1 });
 
     // Attach course details to each enrollment
-    const courseIds = enrollments.map((e) => e.courseId);
+    const courseIds = enrollments.map((e: any) => e.courseId);
     const courses = await Course.find({ courseId: { $in: courseIds } }).select('courseId title category image lessonCount');
 
     const courseMap = new Map();
-    courses.forEach((c) => courseMap.set(c.courseId, c));
+    (courses as any[]).forEach((c: any) => courseMap.set(c.courseId, c));
 
-    const enrichedEnrollments = enrollments.map((e) => {
+    const enrichedEnrollments = enrollments.map((e: any) => {
       const course = courseMap.get(e.courseId);
       return {
         ...e.toObject(),

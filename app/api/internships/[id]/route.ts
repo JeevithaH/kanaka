@@ -60,7 +60,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     // Prepare task progress array
-    const initialTaskProgress = (internship.tasks || []).map((t) => ({
+    const initialTaskProgress = (internship.tasks || []).map((t: any) => ({
       taskId: t.taskId,
       status: 'Not Started' as const,
     }));
@@ -79,7 +79,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
 
     // Create user tasks for each internship task
-    const userTasks = (internship.tasks || []).map((t) => ({
+    const userTasks = (internship.tasks || []).map((t: any) => ({
       userId: user!.id,
       internshipId: internship.internshipId,
       courseTitle: internship.title,
