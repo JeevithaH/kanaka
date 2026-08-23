@@ -32,7 +32,8 @@ interface InternshipDetail {
   certificateEligible: boolean;
 }
 
-export default function InternshipDetailPage({ params }: { params: { id: string } }) {
+export default function InternshipDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const unwrappedParams = React.use(params);
   const router = useRouter();
   const { user } = useAuth();
   const [internship, setInternship] = useState<InternshipDetail | null>(null);
@@ -44,7 +45,7 @@ export default function InternshipDetailPage({ params }: { params: { id: string 
   useEffect(() => {
     async function loadData() {
       try {
-        const res = await fetch(`/api/internships/${params.id}`);
+        const res = await fetch(`/api/internships/${unwrappedParams.id}`);
         const data = await res.json();
         if (data.internship) {
           setInternship(data.internship);
@@ -55,7 +56,7 @@ export default function InternshipDetailPage({ params }: { params: { id: string 
           const dashData = await dashRes.json();
           if (dashData.internshipEnrollments) {
             const match = dashData.internshipEnrollments.find(
-              (e: any) => e.internshipId === params.id || e.internshipId === data.internship?.internshipId
+              (e: any) => e.internshipId === unwrappedParams.id || e.internshipId === data.internship?.internshipId
             );
             if (match) {
               setIsEnrolled(true);
@@ -70,17 +71,17 @@ export default function InternshipDetailPage({ params }: { params: { id: string 
       }
     }
     loadData();
-  }, [params.id, user]);
+  }, [unwrappedParams.id, user]);
 
   const handleEnrollFree = async () => {
     if (!user) {
-      router.push(`/login?redirect=/internships/${params.id}`);
+      router.push(`/login?redirect=/internships/${unwrappedParams.id}`);
       return;
     }
 
     setIsEnrolling(true);
     try {
-      const res = await fetch(`/api/internships/${params.id}`, { method: 'POST' });
+      const res = await fetch(`/api/internships/${unwrappedParams.id}`, { method: 'POST' });
       const data = await res.json();
 
       if (res.ok) {
@@ -99,7 +100,7 @@ export default function InternshipDetailPage({ params }: { params: { id: string 
   const handlePayValidation = async () => {
     if (!user) return;
     try {
-      const res = await fetch(`/api/internships/${params.id}/validate`, {
+      const res = await fetch(`/api/internships/${unwrappedParams.id}/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paymentMethod: 'upi' }),

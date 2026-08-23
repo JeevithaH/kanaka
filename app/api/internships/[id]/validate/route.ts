@@ -6,8 +6,9 @@ import { Payment } from '@/models/Payment';
 import { Notification } from '@/models/Notification';
 import { requireAuth } from '@/lib/auth';
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { user, errorResponse } = await requireAuth(req);
     if (errorResponse) return errorResponse;
 
@@ -16,7 +17,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     await connectToDatabase();
 
     const internship = await Internship.findOne({
-      $or: [{ internshipId: params.id }, { _id: params.id }],
+      $or: [{ internshipId: id }, { _id: id }],
     });
 
     if (!internship) {

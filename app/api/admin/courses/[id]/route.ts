@@ -3,13 +3,14 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { Course } from '@/models/Course';
 import { requireAdmin } from '@/lib/auth';
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { errorResponse } = await requireAdmin(req);
     if (errorResponse) return errorResponse;
 
     await connectToDatabase();
-    const course = await Course.findOne({ $or: [{ courseId: params.id }, { _id: params.id }] });
+    const course = await Course.findOne({ $or: [{ courseId: id }, { _id: id }] });
     if (!course) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
     }
@@ -19,8 +20,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { errorResponse } = await requireAdmin(req);
     if (errorResponse) return errorResponse;
 
@@ -28,7 +30,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     await connectToDatabase();
     const course = await Course.findOneAndUpdate(
-      { $or: [{ courseId: params.id }, { _id: params.id }] },
+      { $or: [{ courseId: id }, { _id: id }] },
       updates,
       { new: true }
     );
@@ -43,13 +45,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { errorResponse } = await requireAdmin(req);
     if (errorResponse) return errorResponse;
 
     await connectToDatabase();
-    await Course.deleteOne({ $or: [{ courseId: params.id }, { _id: params.id }] });
+    await Course.deleteOne({ $or: [{ courseId: id }, { _id: id }] });
 
     return NextResponse.json({ message: 'Course deleted successfully!' });
   } catch (error: any) {

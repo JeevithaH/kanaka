@@ -3,11 +3,12 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { Course } from '@/models/Course';
 import { seedCoursesIfEmpty } from '@/lib/seedCourses';
 
-export async function GET(req: Request, { params }: { params: { slug: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
+    const { slug } = await params;
     await connectToDatabase();
     await seedCoursesIfEmpty();
-    const course = await Course.findOne({ courseId: params.slug, isPublished: true }).select('-__v');
+    const course = await Course.findOne({ courseId: slug, isPublished: true }).select('-__v');
     if (!course) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
     }

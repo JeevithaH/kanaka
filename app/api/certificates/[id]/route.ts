@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { Certificate } from '@/models/Certificate';
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     await connectToDatabase();
-    const certificate = await Certificate.findOne({ certificateId: params.id.toUpperCase() });
+    const certificate = await Certificate.findOne({ certificateId: id.toUpperCase() });
     if (!certificate) {
       return NextResponse.json({ error: 'Certificate not found or invalid ID' }, { status: 404 });
     }

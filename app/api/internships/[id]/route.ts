@@ -7,13 +7,14 @@ import { Notification } from '@/models/Notification';
 import { requireAuth } from '@/lib/auth';
 import { seedInternshipsIfEmpty } from '@/lib/seedInternships';
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     await connectToDatabase();
     await seedInternshipsIfEmpty();
 
     const internship = await Internship.findOne({
-      $or: [{ internshipId: params.id }, { _id: params.id }],
+      $or: [{ internshipId: id }, { _id: id }],
       isPublished: true,
     });
 
@@ -28,8 +29,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { user, errorResponse } = await requireAuth(req);
     if (errorResponse) return errorResponse;
 
@@ -37,7 +39,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     await seedInternshipsIfEmpty();
 
     const internship = await Internship.findOne({
-      $or: [{ internshipId: params.id }, { _id: params.id }],
+      $or: [{ internshipId: id }, { _id: id }],
     });
 
     if (!internship) {

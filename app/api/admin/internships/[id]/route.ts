@@ -5,14 +5,15 @@ import { InternshipEnrollment } from '@/models/InternshipEnrollment';
 import { TaskSubmission } from '@/models/TaskSubmission';
 import { requireAdmin } from '@/lib/auth';
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { errorResponse } = await requireAdmin(req);
     if (errorResponse) return errorResponse;
 
     await connectToDatabase();
     const internship = await Internship.findOne({
-      $or: [{ internshipId: params.id }, { _id: params.id }],
+      $or: [{ internshipId: id }, { _id: id }],
     });
 
     if (!internship) {
@@ -30,8 +31,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { errorResponse } = await requireAdmin(req);
     if (errorResponse) return errorResponse;
 
@@ -39,7 +41,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     await connectToDatabase();
     const internship = await Internship.findOneAndUpdate(
-      { $or: [{ internshipId: params.id }, { _id: params.id }] },
+      { $or: [{ internshipId: id }, { _id: id }] },
       updates,
       { new: true }
     );
@@ -54,13 +56,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { errorResponse } = await requireAdmin(req);
     if (errorResponse) return errorResponse;
 
     await connectToDatabase();
-    await Internship.deleteOne({ $or: [{ internshipId: params.id }, { _id: params.id }] });
+    await Internship.deleteOne({ $or: [{ internshipId: id }, { _id: id }] });
 
     return NextResponse.json({ message: 'Internship program deleted successfully!' });
   } catch (error: any) {

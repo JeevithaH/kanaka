@@ -6,8 +6,9 @@ import { InternshipEnrollment } from '@/models/InternshipEnrollment';
 import { Notification } from '@/models/Notification';
 import { requireAuth } from '@/lib/auth';
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { user, errorResponse } = await requireAuth(req);
     if (errorResponse) return errorResponse;
 
@@ -19,7 +20,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     await connectToDatabase();
 
-    const task = await Task.findOne({ _id: params.id, userId: user!.id });
+    const task = await Task.findOne({ _id: id, userId: user!.id });
     if (!task) {
       return NextResponse.json({ error: 'Assigned task not found.' }, { status: 404 });
     }

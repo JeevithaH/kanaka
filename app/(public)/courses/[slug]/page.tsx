@@ -40,7 +40,8 @@ interface CourseDetail {
   tests: any[];
 }
 
-export default function CourseDetailPage({ params }: { params: { slug: string } }) {
+export default function CourseDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const unwrappedParams = React.use(params);
   const router = useRouter();
   const { user } = useAuth();
   const [course, setCourse] = useState<CourseDetail | null>(null);
@@ -51,7 +52,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
   useEffect(() => {
     async function loadData() {
       try {
-        const res = await fetch(`/api/courses/${params.slug}`);
+        const res = await fetch(`/api/courses/${unwrappedParams.slug}`);
         const data = await res.json();
         if (data.course) {
           setCourse(data.course);
@@ -61,7 +62,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
           const enrollRes = await fetch('/api/enrollments');
           const enrollData = await enrollRes.json();
           if (enrollData.enrollments) {
-            const match = enrollData.enrollments.some((e: any) => e.courseId === params.slug);
+            const match = enrollData.enrollments.some((e: any) => e.courseId === unwrappedParams.slug);
             setIsEnrolled(match);
           }
         }
@@ -72,11 +73,11 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
       }
     }
     loadData();
-  }, [params.slug, user]);
+  }, [unwrappedParams.slug, user]);
 
   const handleEnroll = async () => {
     if (!user) {
-      router.push(`/login?redirect=${encodeURIComponent(`/courses/${params.slug}`)}`);
+      router.push(`/login?redirect=${encodeURIComponent(`/courses/${unwrappedParams.slug}`)}`);
       return;
     }
 
@@ -85,11 +86,11 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
       const res = await fetch('/api/enrollments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId: params.slug }),
+        body: JSON.stringify({ courseId: unwrappedParams.slug }),
       });
 
       if (res.ok) {
-        router.push(`/learn/${params.slug}/mod1-lesson1`);
+        router.push(`/learn/${unwrappedParams.slug}/mod1-lesson1`);
       } else {
         const data = await res.json();
         alert(data.error || 'Failed to enroll');

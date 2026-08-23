@@ -45,7 +45,8 @@ interface CourseData {
   tests: TestData[];
 }
 
-export default function CoursePlayerPage({ params }: { params: { course: string; lesson: string } }) {
+export default function CoursePlayerPage({ params }: { params: Promise<{ course: string; lesson: string }> }) {
+  const unwrappedParams = React.use(params);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -67,14 +68,14 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
   useEffect(() => {
     async function loadPlayerData() {
       try {
-        const res = await fetch(`/api/courses/${params.course}`);
+        const res = await fetch(`/api/courses/${unwrappedParams.course}`);
         const data = await res.json();
         if (data.course) {
           setCourse(data.course);
 
           let foundLesson: LessonData | null = null;
           data.course.modules.forEach((mod: ModuleData) => {
-            const l = mod.lessons.find((item) => item.id === params.lesson);
+            const l = mod.lessons.find((item) => item.id === unwrappedParams.lesson);
             if (l) foundLesson = l;
           });
 
@@ -89,7 +90,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
           const enrollRes = await fetch('/api/enrollments');
           const enrollData = await enrollRes.json();
           if (enrollData.enrollments) {
-            const match = enrollData.enrollments.find((e: any) => e.courseId === params.course);
+            const match = enrollData.enrollments.find((e: any) => e.courseId === unwrappedParams.course);
             if (match) {
               setCompletedLessons(match.completedLessons || []);
               setIsPaid(match.paymentStatus === 'paid');
@@ -105,7 +106,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
       }
     }
     loadPlayerData();
-  }, [params.course, params.lesson, user]);
+  }, [unwrappedParams.course, unwrappedParams.lesson, user]);
 
   const markLessonComplete = async () => {
     if (!activeLesson || !user || !isPaid) return;
@@ -113,7 +114,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
       const res = await fetch('/api/enrollments/progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId: params.course, lessonId: activeLesson.id }),
+        body: JSON.stringify({ courseId: unwrappedParams.course, lessonId: activeLesson.id }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -137,7 +138,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
       const res = await fetch('/api/tests/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId: params.course, testId: activeTest.id, answers }),
+        body: JSON.stringify({ courseId: unwrappedParams.course, testId: activeTest.id, answers }),
       });
       const data = await res.json();
       setTestResult(data);
@@ -416,7 +417,7 @@ export default function CoursePlayerPage({ params }: { params: { course: string;
         <CourseCheckoutModal
           isOpen={isCheckoutOpen}
           onClose={() => setIsCheckoutOpen(false)}
-          courseId={params.course}
+          courseId={unwrappedParams.course}
           courseTitle={course.title}
           originalPrice={1999}
           onPaymentSuccess={handlePaymentSuccess}

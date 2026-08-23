@@ -10,14 +10,15 @@ import { Payment } from '@/models/Payment';
 import { TestAttempt } from '@/models/TestAttempt';
 import { requireAdmin } from '@/lib/auth';
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { errorResponse } = await requireAdmin(req);
     if (errorResponse) return errorResponse;
 
     await connectToDatabase();
 
-    const user = await User.findById(params.id).select('-passwordHash');
+    const user = await User.findById(id).select('-passwordHash');
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -31,13 +32,13 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       payments,
       testAttempts,
     ] = await Promise.all([
-      Enrollment.find({ userId: params.id }),
-      InternshipEnrollment.find({ userId: params.id }),
-      Task.find({ userId: params.id }),
-      TaskSubmission.find({ userId: params.id }),
-      Certificate.find({ userId: params.id }),
-      Payment.find({ userId: params.id }),
-      TestAttempt.find({ userId: params.id }),
+      Enrollment.find({ userId: id }),
+      InternshipEnrollment.find({ userId: id }),
+      Task.find({ userId: id }),
+      TaskSubmission.find({ userId: id }),
+      Certificate.find({ userId: id }),
+      Payment.find({ userId: id }),
+      TestAttempt.find({ userId: id }),
     ]);
 
     return NextResponse.json({

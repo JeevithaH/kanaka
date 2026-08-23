@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 
 export async function POST() {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.delete('skyrellac_session');
   } catch (err) {
     console.error('Error deleting cookie via cookieStore:', err);

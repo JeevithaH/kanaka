@@ -12,7 +12,8 @@ interface CertData {
   testTotal: number;
 }
 
-export default function CertificateVerificationPage({ params }: { params: { id: string } }) {
+export default function CertificateVerificationPage({ params }: { params: Promise<{ id: string }> }) {
+  const unwrappedParams = React.use(params);
   const [cert, setCert] = useState<CertData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -20,7 +21,7 @@ export default function CertificateVerificationPage({ params }: { params: { id: 
   useEffect(() => {
     async function verifyCert() {
       try {
-        const res = await fetch(`/api/certificates/${params.id}`);
+        const res = await fetch(`/api/certificates/${unwrappedParams.id}`);
         const data = await res.json();
         if (res.ok && data.certificate) {
           setCert(data.certificate);
@@ -34,7 +35,7 @@ export default function CertificateVerificationPage({ params }: { params: { id: 
       }
     }
     verifyCert();
-  }, [params.id]);
+  }, [unwrappedParams.id]);
 
   if (isLoading) {
     return (

@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { ArrowLeft, Shield, CheckCircle2, XCircle, Award } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
-export default function AdminInternshipParticipantReviewPage({ params }: { params: { id: string } }) {
+export default function AdminInternshipParticipantReviewPage({ params }: { params: Promise<{ id: string }> }) {
+  const unwrappedParams = React.use(params);
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [evaluationFeedback, setEvaluationFeedback] = useState('');
@@ -14,7 +15,7 @@ export default function AdminInternshipParticipantReviewPage({ params }: { param
 
   const fetchDetail = async () => {
     try {
-      const res = await fetch(`/api/admin/internships/${params.id}`);
+      const res = await fetch(`/api/admin/internships/${unwrappedParams.id}`);
       const result = await res.json();
       setData(result);
     } catch (err) {
@@ -26,7 +27,7 @@ export default function AdminInternshipParticipantReviewPage({ params }: { param
 
   useEffect(() => {
     fetchDetail();
-  }, [params.id]);
+  }, [unwrappedParams.id]);
 
   const handleEvaluateTask = async (submissionId: string, status: 'Approved' | 'Rejected') => {
     try {
