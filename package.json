@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "deploy": "npx wrangler deploy worker.ts --assets=.next",
     "start": "next start",
     "lint": "next lint"
   },
