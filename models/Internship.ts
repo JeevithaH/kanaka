@@ -1,16 +1,17 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import { createModel } from '@/lib/mongodb';
 
 export interface IInternshipTask {
   taskId: string;
   title: string;
   description: string;
   instructions?: string;
-  deadlineDays: number; // e.g. 7 days after start
+  deadlineDays: number;
   maxScore: number;
 }
 
-export interface IInternship extends Document {
-  internshipId: string; // unique slug e.g. ai-ml-engineering-intern
+export interface IInternship {
+  _id: any;
+  internshipId: string;
   title: string;
   description: string;
   organization: string;
@@ -22,44 +23,14 @@ export interface IInternship extends Document {
   type: 'Full-time' | 'Part-time' | 'Project-based';
   requiredSkills: string[];
   tasks: IInternshipTask[];
-  validationFee: number; // e.g. 499 for certification/validation
+  validationFee: number;
   certificateEligible: boolean;
   isPublished: boolean;
   maxParticipants?: number;
   createdAt: Date;
   updatedAt: Date;
+  save: () => Promise<any>;
+  toObject: () => any;
 }
 
-const InternshipSchema: Schema = new Schema<IInternship>(
-  {
-    internshipId: { type: String, required: true, unique: true, trim: true },
-    title: { type: String, required: true, trim: true },
-    description: { type: String, required: true },
-    organization: { type: String, required: true, default: 'Skyrellac Innovation Labs' },
-    mode: { type: String, enum: ['Remote', 'Hybrid', 'On-site'], default: 'Remote' },
-    location: { type: String, default: 'Global / Remote' },
-    durationWeeks: { type: Number, required: true, default: 8 },
-    startDate: { type: Date },
-    endDate: { type: Date },
-    type: { type: String, enum: ['Full-time', 'Part-time', 'Project-based'], default: 'Project-based' },
-    requiredSkills: { type: [String], default: [] },
-    tasks: [
-      {
-        taskId: { type: String, required: true },
-        title: { type: String, required: true },
-        description: { type: String, default: '' },
-        instructions: { type: String, default: '' },
-        deadlineDays: { type: Number, default: 7 },
-        maxScore: { type: Number, default: 100 },
-      },
-    ],
-    validationFee: { type: Number, default: 499 },
-    certificateEligible: { type: Boolean, default: true },
-    isPublished: { type: Boolean, default: true },
-    maxParticipants: { type: Number, default: 500 },
-  },
-  { timestamps: true }
-);
-
-export const Internship: Model<IInternship> =
-  mongoose.models.Internship || mongoose.model<IInternship>('Internship', InternshipSchema);
+export const Internship = createModel<IInternship>('internships');

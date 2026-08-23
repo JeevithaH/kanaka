@@ -1,25 +1,15 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import { createModel } from '@/lib/mongodb';
 
-export interface IFeedback extends Document {
+export interface IFeedback {
+  _id: any;
   userId: string;
   courseId: string;
-  rating: number; // 1-5
+  rating: number;
   review: string;
   createdAt: Date;
   updatedAt: Date;
+  save: () => Promise<any>;
+  toObject: () => any;
 }
 
-const FeedbackSchema: Schema = new Schema<IFeedback>(
-  {
-    userId: { type: String, required: true, index: true },
-    courseId: { type: String, required: true, index: true },
-    rating: { type: Number, required: true, min: 1, max: 5 },
-    review: { type: String, default: '' },
-  },
-  { timestamps: true }
-);
-
-FeedbackSchema.index({ userId: 1, courseId: 1 }, { unique: true });
-
-export const Feedback: Model<IFeedback> =
-  mongoose.models.Feedback || mongoose.model<IFeedback>('Feedback', FeedbackSchema);
+export const Feedback = createModel<IFeedback>('feedbacks');

@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import { createModel } from '@/lib/mongodb';
 
 export interface ILesson {
   id: string;
@@ -34,8 +34,9 @@ export interface ITest {
   questions: IQuestion[];
 }
 
-export interface ICourse extends Document {
-  courseId: string; // Unique slug/code e.g. ai-fundamentals
+export interface ICourse {
+  _id: any;
+  courseId: string;
   title: string;
   description: string;
   instructor: {
@@ -44,10 +45,10 @@ export interface ICourse extends Document {
     avatarUrl?: string;
   };
   image: string;
-  originalPrice: number; // 1999
-  discountedPrice: number; // 199
-  discountPercentage: number; // 90
-  rating: number; // 4.8
+  originalPrice: number;
+  discountedPrice: number;
+  discountPercentage: number;
+  rating: number;
   studentsCount: number;
   category: string;
   difficulty: 'Foundational' | 'Intermediate' | 'Advanced';
@@ -60,129 +61,8 @@ export interface ICourse extends Document {
   tests: ITest[];
   createdAt: Date;
   updatedAt: Date;
+  save: () => Promise<any>;
+  toObject: () => any;
 }
 
-const CourseSchema: Schema = new Schema<ICourse>(
-  {
-    courseId: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    description: {
-      type: String,
-      required: true,
-    },
-    instructor: {
-      name: { type: String, required: true, default: 'Skyrellac Expert' },
-      title: { type: String, default: 'Senior Tech Lead' },
-      avatarUrl: { type: String, default: '' },
-    },
-    image: {
-      type: String,
-      default: '',
-    },
-    originalPrice: {
-      type: Number,
-      default: 1999,
-    },
-    discountedPrice: {
-      type: Number,
-      default: 199,
-    },
-    discountPercentage: {
-      type: Number,
-      default: 90,
-    },
-    rating: {
-      type: Number,
-      default: 4.8,
-    },
-    studentsCount: {
-      type: Number,
-      default: 1240,
-    },
-    category: {
-      type: String,
-      required: true,
-      default: 'Artificial Intelligence',
-    },
-    difficulty: {
-      type: String,
-      enum: ['Foundational', 'Intermediate', 'Advanced'],
-      default: 'Foundational',
-    },
-    durationMinutes: {
-      type: Number,
-      default: 240,
-    },
-    lessonCount: {
-      type: Number,
-      default: 12,
-    },
-    certificateEligible: {
-      type: Boolean,
-      default: true,
-    },
-    isPublished: {
-      type: Boolean,
-      default: true,
-    },
-    skills: {
-      type: [String],
-      default: [],
-    },
-    modules: [
-      {
-        id: { type: String, required: true },
-        title: { type: String, required: true },
-        description: { type: String, default: '' },
-        lessons: [
-          {
-            id: { type: String, required: true },
-            title: { type: String, required: true },
-            duration: { type: String, default: '15 mins' },
-            contentType: {
-              type: String,
-              enum: ['video', 'text', 'quiz', 'project'],
-              default: 'video',
-            },
-            videoUrl: { type: String, default: '' },
-            contentText: { type: String, default: '' },
-            resourceUrl: { type: String, default: '' },
-          },
-        ],
-      },
-    ],
-    tests: [
-      {
-        id: { type: String, required: true },
-        title: { type: String, required: true },
-        durationMinutes: { type: Number, default: 30 },
-        passingScorePct: { type: Number, default: 70 },
-        totalMarks: { type: Number, default: 100 },
-        questions: [
-          {
-            id: { type: String, required: true },
-            questionText: { type: String, required: true },
-            options: { type: [String], required: true },
-            correctOptionIndex: { type: Number, required: true },
-            explanation: { type: String, default: '' },
-          },
-        ],
-      },
-    ],
-  },
-  {
-    timestamps: true,
-  }
-);
-
-export const Course: Model<ICourse> =
-  mongoose.models.Course || mongoose.model<ICourse>('Course', CourseSchema);
+export const Course = createModel<ICourse>('courses');

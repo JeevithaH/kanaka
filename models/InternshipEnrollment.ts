@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import { createModel } from '@/lib/mongodb';
 
 export interface IInternshipTaskProgress {
   taskId: string;
@@ -9,7 +9,8 @@ export interface IInternshipTaskProgress {
   updatedAt?: Date;
 }
 
-export interface IInternshipEnrollment extends Document {
+export interface IInternshipEnrollment {
+  _id: any;
   userId: string;
   internshipId: string;
   enrollmentDate: Date;
@@ -27,44 +28,8 @@ export interface IInternshipEnrollment extends Document {
   };
   createdAt: Date;
   updatedAt: Date;
+  save: () => Promise<any>;
+  toObject: () => any;
 }
 
-const InternshipEnrollmentSchema: Schema = new Schema<IInternshipEnrollment>(
-  {
-    userId: { type: String, required: true, index: true },
-    internshipId: { type: String, required: true, index: true },
-    enrollmentDate: { type: Date, default: Date.now },
-    status: { type: String, enum: ['active', 'completed', 'withdrawn'], default: 'active' },
-    progressPercentage: { type: Number, default: 0 },
-    validationStatus: { type: String, enum: ['pending', 'paid', 'validated'], default: 'pending' },
-    validationAmountPaid: { type: Number, default: 0 },
-    validationPaymentDate: { type: Date },
-    taskProgress: [
-      {
-        taskId: { type: String, required: true },
-        status: {
-          type: String,
-          enum: ['Not Started', 'In Progress', 'Submitted', 'Under Review', 'Approved', 'Rejected', 'Completed'],
-          default: 'Not Started',
-        },
-        submissionId: { type: String },
-        score: { type: Number },
-        feedback: { type: String },
-        updatedAt: { type: Date, default: Date.now },
-      },
-    ],
-    certificateStatus: {
-      eligible: { type: Boolean, default: false },
-      issued: { type: Boolean, default: false },
-      certificateId: { type: String, default: '' },
-      issuedAt: { type: Date },
-    },
-  },
-  { timestamps: true }
-);
-
-InternshipEnrollmentSchema.index({ userId: 1, internshipId: 1 }, { unique: true });
-
-export const InternshipEnrollment: Model<IInternshipEnrollment> =
-  mongoose.models.InternshipEnrollment ||
-  mongoose.model<IInternshipEnrollment>('InternshipEnrollment', InternshipEnrollmentSchema);
+export const InternshipEnrollment = createModel<IInternshipEnrollment>('internship_enrollments');
