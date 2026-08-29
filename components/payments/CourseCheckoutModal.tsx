@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 interface CourseCheckoutModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export function CourseCheckoutModal({
   originalPrice = 1999,
   onPaymentSuccess,
 }: CourseCheckoutModalProps) {
+  const { user } = useAuth();
   const [couponCode, setCouponCode] = useState('');
   const [appliedDiscountPct, setAppliedDiscountPct] = useState<number>(0);
   const [appliedDiscountAmount, setAppliedDiscountAmount] = useState<number>(0);
@@ -28,7 +30,21 @@ export function CourseCheckoutModal({
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [showQRStep, setShowQRStep] = useState(false);
+
+  // Dynamically load Razorpay SDK
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    // Check if script already exists
+    const existingScript = document.getElementById('razorpay-sdk');
+    if (!existingScript) {
+      const script = document.createElement('script');
+      script.id = 'razorpay-sdk';
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -77,41 +93,91 @@ export function CourseCheckoutModal({
     setIsProcessing(true);
 
     try {
-      if (paymentMethod === 'upi' && !showQRStep) {
-        setShowQRStep(true);
-        setIsProcessing(false);
-        return;
-      }
-
-      const res = await fetch('/api/enrollments/pay', {
+      // 1. Create Razorpay order
+      const res = await fetch('/api/razorpay/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           courseId,
           couponCode: appliedCouponName,
-          paymentMethod,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setErrorMessage(data.error || 'Payment failed. Please try again.');
+        setErrorMessage(data.error || 'Failed to initialize payment.');
+        setIsProcessing(false);
         return;
       }
 
-      onPaymentSuccess(data.enrollment);
-      setShowQRStep(false);
-      onClose();
+      // Check if SDK loaded
+      if (!(window as any).Razorpay) {
+        setErrorMessage('Razorpay SDK failed to load. Check your internet connection.');
+        setIsProcessing(false);
+        return;
+      }
+
+      // 2. Configure and open Razorpay Checkout modal
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_placeholder_key',
+        amount: data.amount,
+        currency: data.currency,
+        name: 'Skyrellac',
+        description: `Purchase Course: ${courseTitle}`,
+        order_id: data.orderId,
+        handler: async function (response: any) {
+          try {
+            setIsProcessing(true);
+            const verifyRes = await fetch('/api/razorpay/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                courseId,
+                couponCode: appliedCouponName,
+              }),
+            });
+
+            const verifyData = await verifyRes.json();
+
+            if (!verifyRes.ok) {
+              setErrorMessage(verifyData.error || 'Payment verification failed.');
+              setIsProcessing(false);
+              return;
+            }
+
+            onPaymentSuccess(verifyData.enrollment);
+            onClose();
+          } catch (err) {
+            setErrorMessage('Network error while verifying payment.');
+            setIsProcessing(false);
+          }
+        },
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+          method: paymentMethod === 'upi' ? 'upi' : paymentMethod === 'card' ? 'card' : 'netbanking',
+        },
+        theme: {
+          color: '#161616',
+        },
+        modal: {
+          ondismiss: function () {
+            setIsProcessing(false);
+          },
+        },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
     } catch (err) {
       setErrorMessage('Network error while processing payment.');
-    } finally {
       setIsProcessing(false);
     }
   };
-
-  const upiUrl = `upi://pay?pa=jeevitha171977-2@okhdfcbank&pn=Skyrellac&cu=INR&am=${finalAmount}`;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiUrl)}`;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
@@ -245,50 +311,17 @@ export function CourseCheckoutModal({
             </div>
           )}
 
-          {/* Submit Button */}
-          {showQRStep ? (
-            <div className="flex flex-col items-center space-y-4 py-6 border border-stone-200 rounded-xl bg-stone-100/30">
-              <h3 className="text-sm font-bold text-slate-800 text-center">Scan to Pay via UPI</h3>
-              <p className="text-xs text-slate-500 text-center px-4">Open Google Pay, PhonePe, Paytm or any UPI app to complete your payment of <span className="font-bold text-stone-700">₹{finalAmount.toLocaleString()}</span></p>
-              
-              <div className="p-4 bg-white rounded-xl shadow-sm border border-slate-200">
-                <img src={qrCodeUrl} alt="UPI QR Code" className="w-48 h-48" />
-              </div>
-              
-              <div className="text-center space-y-1">
-                <p className="text-xs font-mono font-semibold text-slate-700">jeevitha171977-2@okhdfcbank</p>
-                <p className="text-[10px] text-slate-400">Skyrellac EdTech</p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isProcessing}
-                className="w-full max-w-xs mt-4 bg-[#198038] text-white py-3.5 text-sm font-semibold rounded-xl hover:bg-[#0e6027] transition-colors disabled:opacity-50 shadow-md flex justify-center items-center"
-              >
-                {isProcessing ? 'Verifying...' : 'I have completed payment'}
-              </button>
-              
-              <button 
-                type="button" 
-                onClick={() => setShowQRStep(false)}
-                className="text-xs text-slate-500 hover:text-slate-800 font-semibold"
-              >
-                Go Back
-              </button>
-            </div>
-          ) : (
-            <button
-              type="submit"
-              disabled={isProcessing}
-              className="w-full bg-[#198038] text-white py-3.5 text-sm font-semibold rounded-xl hover:bg-[#0e6027] transition-colors disabled:opacity-50 shadow-md flex justify-center items-center gap-2"
-            >
-              {isProcessing ? (
-                <span>Processing Payment...</span>
-              ) : (
-                <span>Complete Payment of ₹{finalAmount.toLocaleString()} & Unlock Course</span>
-              )}
-            </button>
-          )}
+          <button
+            type="submit"
+            disabled={isProcessing}
+            className="w-full bg-[#198038] text-white py-3.5 text-sm font-semibold rounded-xl hover:bg-[#0e6027] transition-colors disabled:opacity-50 shadow-md flex justify-center items-center gap-2"
+          >
+            {isProcessing ? (
+              <span>Processing Payment...</span>
+            ) : (
+              <span>Complete Payment of ₹{finalAmount.toLocaleString()} & Unlock Course</span>
+            )}
+          </button>
         </form>
       </div>
     </div>
