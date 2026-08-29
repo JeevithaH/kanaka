@@ -1,9 +1,18 @@
-// Edge-compatible MongoDB Atlas Data API wrapper for Cloudflare Workers
+import mongoose, { Schema } from 'mongoose';
 
 const DATA_API_URL = process.env.MONGODB_DATA_API_URL || '';
 const DATA_API_KEY = process.env.MONGODB_DATA_API_KEY || '';
 const DATABASE = process.env.MONGODB_DATA_API_DATABASE || 'skyrellac';
 const DATASOURCE = process.env.MONGODB_DATA_API_DATASOURCE || 'Cluster0';
+
+// Use local mongoose if MONGODB_DATA_API_URL is not set
+const isLocalMongoose = !DATA_API_URL && !!process.env.MONGODB_URI;
+
+function getMongooseModel(collection: string) {
+  // Normalize collection name to capitalized singular name for Mongoose Model name
+  const modelName = collection.charAt(0).toUpperCase() + collection.slice(1);
+  return mongoose.models[modelName] || mongoose.model(modelName, new Schema({}, { strict: false, timestamps: true }), collection);
+}
 
 async function fetchAtlas(action: string, body: any) {
   if (!DATA_API_URL || !DATA_API_KEY) {
@@ -154,14 +163,23 @@ export class AtlasModel<T> {
   constructor(public collection: string, private modelClass: any) {}
 
   find(filter: any = {}) {
+    if (isLocalMongoose) {
+      return getMongooseModel(this.collection).find(filter) as any;
+    }
     return new AtlasQuery<any>(this.collection, filter, false, this.modelClass);
   }
 
   findOne(filter: any = {}) {
+    if (isLocalMongoose) {
+      return getMongooseModel(this.collection).findOne(filter) as any;
+    }
     return new AtlasQuery<any>(this.collection, filter, true, this.modelClass);
   }
 
   async create(doc: any) {
+    if (isLocalMongoose) {
+      return getMongooseModel(this.collection).create(doc) as any;
+    }
     if (Array.isArray(doc)) {
       const serializedDocs = doc.map(serialize);
       const res = await fetchAtlas('insertMany', { collection: this.collection, documents: serializedDocs });
@@ -173,10 +191,16 @@ export class AtlasModel<T> {
   }
 
   async insertMany(docs: any[]) {
+    if (isLocalMongoose) {
+      return getMongooseModel(this.collection).insertMany(docs) as any;
+    }
     return this.create(docs);
   }
 
   async updateOne(filter: any, update: any, options?: any) {
+    if (isLocalMongoose) {
+      return getMongooseModel(this.collection).updateOne(filter, update, options) as any;
+    }
     const payload: any = {
       collection: this.collection,
       filter: serialize(filter),
@@ -190,6 +214,9 @@ export class AtlasModel<T> {
   }
 
   async updateMany(filter: any, update: any, options?: any) {
+    if (isLocalMongoose) {
+      return getMongooseModel(this.collection).updateMany(filter, update, options) as any;
+    }
     const payload: any = {
       collection: this.collection,
       filter: serialize(filter),
@@ -203,11 +230,17 @@ export class AtlasModel<T> {
   }
 
   async findOneAndUpdate(filter: any, update: any, options?: any) {
+    if (isLocalMongoose) {
+      return getMongooseModel(this.collection).findOneAndUpdate(filter, update, { new: true, ...options }) as any;
+    }
     await this.updateOne(filter, update, options);
     return this.findOne(filter);
   }
 
   async deleteOne(filter: any) {
+    if (isLocalMongoose) {
+      return getMongooseModel(this.collection).deleteOne(filter) as any;
+    }
     const res = await fetchAtlas('deleteOne', {
       collection: this.collection,
       filter: serialize(filter)
@@ -216,6 +249,9 @@ export class AtlasModel<T> {
   }
 
   async deleteMany(filter: any) {
+    if (isLocalMongoose) {
+      return getMongooseModel(this.collection).deleteMany(filter) as any;
+    }
     const res = await fetchAtlas('deleteMany', {
       collection: this.collection,
       filter: serialize(filter)
@@ -224,6 +260,9 @@ export class AtlasModel<T> {
   }
 
   async countDocuments(filter: any = {}) {
+    if (isLocalMongoose) {
+      return getMongooseModel(this.collection).countDocuments(filter) as any;
+    }
     const res = await fetchAtlas('aggregate', {
       collection: this.collection,
       pipeline: [
@@ -235,14 +274,23 @@ export class AtlasModel<T> {
   }
 
   findById(id: string) {
+    if (isLocalMongoose) {
+      return getMongooseModel(this.collection).findById(id) as any;
+    }
     return this.findOne({ _id: typeof id === 'string' && id.length === 24 ? { $oid: id } : id });
   }
 
   async findByIdAndUpdate(id: string, update: any, options?: any) {
+    if (isLocalMongoose) {
+      return getMongooseModel(this.collection).findByIdAndUpdate(id, update, { new: true, ...options }) as any;
+    }
     return this.findOneAndUpdate({ _id: typeof id === 'string' && id.length === 24 ? { $oid: id } : id }, update, options);
   }
 
   async bulkWrite(operations: any[]) {
+    if (isLocalMongoose) {
+      return getMongooseModel(this.collection).bulkWrite(operations) as any;
+    }
     const results = [];
     for (const op of operations) {
       if (op.updateOne) {
@@ -269,6 +317,14 @@ export function createModel<T>(collection: string) {
     }
 
     async save() {
+      if (isLocalMongoose) {
+        const model = getMongooseModel(collection);
+        const doc = new model(this);
+        const saved = await doc.save();
+        Object.assign(this, saved.toObject());
+        return this;
+      }
+      
       const id = this._id;
       const filter = id ? { _id: typeof id === 'string' && id.length === 24 ? { $oid: id } : id } : null;
       
@@ -304,7 +360,15 @@ export function createModel<T>(collection: string) {
   return modelClass as any;
 }
 
+let isConnected = false;
+
 // Mongoose compat exports
 export async function connectToDatabase() {
+  if (isLocalMongoose) {
+    if (isConnected) return true;
+    const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/skyrellac';
+    await mongoose.connect(uri);
+    isConnected = true;
+  }
   return true;
 }
