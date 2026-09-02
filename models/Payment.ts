@@ -2,20 +2,15 @@ import { createModel } from '@/lib/mongodb';
 
 export interface IPayment {
   _id: any;
-  transactionId: string;
+  paymentId: string;
+  orderId: string;
   userId: string;
-  userName?: string;
-  userEmail?: string;
+  courseId: string;
   amount: number;
   currency: string;
-  paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded';
-  paymentMethod: string;
-  serviceType: 'course' | 'internship-validation' | 'certificate';
-  serviceId: string;
-  serviceName?: string;
-  couponUsed?: string;
-  discountAmount?: number;
-  gatewayReference?: string;
+  status: 'created' | 'paid' | 'failed';
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
   createdAt: Date;
   updatedAt: Date;
   save: () => Promise<any>;

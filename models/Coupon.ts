@@ -4,15 +4,10 @@ export interface ICoupon {
   _id: any;
   code: string;
   discountPercentage: number;
-  discountAmount?: number;
-  type: 'percentage' | 'fixed';
-  applicableTo: 'course' | 'internship-validation' | 'all';
   maxUses?: number;
-  currentUses: number;
-  validFrom?: Date;
-  validUntil?: Date;
+  usedCount: number;
+  expiryDate?: Date;
   isActive: boolean;
-  createdBy?: string;
   createdAt: Date;
   updatedAt: Date;
   save: () => Promise<any>;

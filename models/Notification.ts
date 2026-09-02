@@ -5,18 +5,9 @@ export interface INotification {
   userId: string;
   title: string;
   message: string;
-  type:
-    | 'task-assigned'
-    | 'deadline'
-    | 'test-available'
-    | 'result'
-    | 'enrollment'
-    | 'payment'
-    | 'internship'
-    | 'certificate'
-    | 'feedback';
-  relatedId?: string;
+  type: 'info' | 'success' | 'warning' | 'error';
   isRead: boolean;
+  linkUrl?: string;
   createdAt: Date;
   updatedAt: Date;
   save: () => Promise<any>;

@@ -2,18 +2,14 @@ import { createModel } from '@/lib/mongodb';
 
 export interface ITestAttempt {
   _id: any;
-  attemptId: string;
   userId: string;
-  courseId?: string;
-  internshipId?: string;
+  courseId: string;
   testId: string;
   answers: number[];
   score: number;
   totalMarks: number;
-  percentage: number;
   passed: boolean;
-  startedAt: Date;
-  completedAt: Date;
+  attemptedAt: Date;
   createdAt: Date;
   updatedAt: Date;
   save: () => Promise<any>;
