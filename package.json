@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "cf:build": "npx opennextjs-cloudflare build",
+    "cf:build": "node -e \"const fs=require('fs'); fs.rmSync('.next', {recursive:true, force:true}); fs.rmSync('.open-next', {recursive:true, force:true});\" && npx opennextjs-cloudflare build",
     "deploy": "npm run cf:build && npx wrangler deploy",
     "start": "next start",
     "lint": "next lint"
