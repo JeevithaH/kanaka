@@ -8,6 +8,14 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('skyrellac_session');
   const isAuthenticated = !!sessionCookie?.value;
+
+  let user: any = null;
+  if (sessionCookie?.value) {
+    try {
+      user = JSON.parse(decodeURIComponent(sessionCookie.value));
+    } catch { /* invalid cookie */ }
+  }
+
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
 
@@ -18,7 +26,8 @@ export function middleware(request: NextRequest) {
   }
 
   if (isAuthRoute && isAuthenticated) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    const targetUrl = user?.role === 'admin' ? '/admin' : '/dashboard';
+    return NextResponse.redirect(new URL(targetUrl, request.url));
   }
 
   return NextResponse.next();

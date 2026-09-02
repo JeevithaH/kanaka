@@ -41,7 +41,8 @@ function LoginForm() {
       }
 
       refreshUser();
-      window.location.href = redirect;
+      const targetRedirect = data.user?.role === 'admin' ? '/admin' : (searchParams.get('redirect') || '/dashboard');
+      window.location.href = targetRedirect;
     } catch (err) {
       setErrorMessage('Failed to connect to authentication server. Please try again.');
     } finally {
