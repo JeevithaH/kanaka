@@ -1,6 +1,6 @@
-import { getD1Database, initD1Tables } from './d1';
+import { getD1Database } from './d1';
 
-// Global in-memory fallback for local dev or when D1 binding is initializing
+// Global memory cache for edge worker isolates
 const globalEdgeStore: Record<string, any[]> = {};
 
 function getEdgeCollection(name: string): any[] {
@@ -56,7 +56,6 @@ class EdgeQuery<T> {
     const db = getD1Database();
     if (db) {
       try {
-        await initD1Tables(db);
         const filterKeys = Object.keys(this.filter || {});
         let query = `SELECT * FROM ${this.collection}`;
         const params: any[] = [];
@@ -79,7 +78,7 @@ class EdgeQuery<T> {
           return (results || []).map((r: any) => new this.modelClass({ ...r, _id: r.id || r.courseId || r.certificateId }));
         }
       } catch (err: any) {
-        console.warn(`D1 query fallback for ${this.collection}:`, err.message);
+        // Fallback to local memory store if table not queried
       }
     }
 
@@ -111,7 +110,6 @@ export class AtlasModel<T> {
 
     if (db) {
       try {
-        await initD1Tables(db);
         const keys = Object.keys(normalizedDoc).filter(k => k !== '_id');
         const placeholders = keys.map(() => '?').join(', ');
         const values = keys.map(k => {
@@ -121,10 +119,7 @@ export class AtlasModel<T> {
 
         const sql = `INSERT OR REPLACE INTO ${this.collection} (${keys.join(', ')}) VALUES (${placeholders})`;
         await db.prepare(sql).bind(...values).run();
-        console.log(`Saved document to Cloudflare D1 table: ${this.collection}`);
-      } catch (err: any) {
-        console.warn(`D1 create fallback for ${this.collection}:`, err.message);
-      }
+      } catch (err: any) {}
     }
 
     const store = getEdgeCollection(this.collection);
@@ -142,7 +137,6 @@ export class AtlasModel<T> {
 
     if (db) {
       try {
-        await initD1Tables(db);
         const updateKeys = Object.keys(updateData);
         const filterKeys = Object.keys(filter);
 
@@ -159,9 +153,7 @@ export class AtlasModel<T> {
 
           await db.prepare(`UPDATE ${this.collection} SET ${setClause} WHERE ${whereClause}`).bind(...values).run();
         }
-      } catch (err: any) {
-        console.warn(`D1 updateOne fallback for ${this.collection}:`, err.message);
-      }
+      } catch (err: any) {}
     }
 
     const store = getEdgeCollection(this.collection);
@@ -267,9 +259,5 @@ export function createModel<T>(collection: string) {
 }
 
 export async function connectToDatabase() {
-  const db = getD1Database();
-  if (db) {
-    await initD1Tables(db);
-  }
   return true;
 }

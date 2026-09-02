@@ -26,8 +26,11 @@ export function middleware(request: NextRequest) {
   }
 
   if (isAuthRoute && isAuthenticated) {
-    const targetUrl = user?.role === 'admin' ? '/admin' : '/dashboard';
-    return NextResponse.redirect(new URL(targetUrl, request.url));
+    const hasRedirect = request.nextUrl.searchParams.get('redirect');
+    if (!hasRedirect) {
+      const targetUrl = user?.role === 'admin' ? '/admin' : '/dashboard';
+      return NextResponse.redirect(new URL(targetUrl, request.url));
+    }
   }
 
   return NextResponse.next();
