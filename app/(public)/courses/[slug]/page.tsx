@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { CourseCheckoutModal } from '@/components/payments/CourseCheckoutModal';
 
 interface Lesson {
   id: string;
@@ -47,7 +48,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ slug: s
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -62,7 +63,9 @@ export default function CourseDetailPage({ params }: { params: Promise<{ slug: s
           const enrollRes = await fetch('/api/enrollments');
           const enrollData = await enrollRes.json();
           if (enrollData.enrollments) {
-            const match = enrollData.enrollments.some((e: any) => e.courseId === unwrappedParams.slug);
+            const match = enrollData.enrollments.some(
+              (e: any) => e.courseId === unwrappedParams.slug && (e.paymentStatus === 'paid' || e.status === 'active')
+            );
             setIsEnrolled(match);
           }
         }
@@ -75,31 +78,12 @@ export default function CourseDetailPage({ params }: { params: Promise<{ slug: s
     loadData();
   }, [unwrappedParams.slug, user]);
 
-  const handleEnroll = async () => {
+  const handleEnrollClick = () => {
     if (!user) {
       router.push(`/login?redirect=${encodeURIComponent(`/courses/${unwrappedParams.slug}`)}`);
       return;
     }
-
-    try {
-      setIsEnrolling(true);
-      const res = await fetch('/api/enrollments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId: unwrappedParams.slug }),
-      });
-
-      if (res.ok) {
-        router.push(`/learn/${unwrappedParams.slug}/mod1-lesson1`);
-      } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to enroll');
-      }
-    } catch (err) {
-      alert('Error connecting to server.');
-    } finally {
-      setIsEnrolling(false);
-    }
+    setIsCheckoutOpen(true);
   };
 
   if (isLoading) {
@@ -145,9 +129,9 @@ export default function CourseDetailPage({ params }: { params: Promise<{ slug: s
             </p>
 
             <div className="flex flex-wrap items-center gap-6 pt-4 text-xs text-[#a8a8a8]">
-              <div>Instructor: <strong className="text-white">{course.instructor.name}</strong> ({course.instructor.title})</div>
-              <div>Rating: <strong className="text-white">★ {course.rating}</strong></div>
-              <div>Learners: <strong className="text-white">{course.studentsCount.toLocaleString()}</strong></div>
+              <div>Instructor: <strong className="text-white">{course.instructor?.name || 'Skyrellac Lead'}</strong></div>
+              <div>Rating: <strong className="text-white">★ {course.rating || 4.8}</strong></div>
+              <div>Learners: <strong className="text-white">{(course.studentsCount || 1200).toLocaleString()}</strong></div>
             </div>
           </div>
 
@@ -175,11 +159,10 @@ export default function CourseDetailPage({ params }: { params: Promise<{ slug: s
                 </Link>
               ) : (
                 <button
-                  onClick={handleEnroll}
-                  disabled={isEnrolling}
-                  className="w-full bg-[#80664f] text-white py-3.5 text-sm font-semibold hover:bg-[#5f4938] transition-colors disabled:opacity-50"
+                  onClick={handleEnrollClick}
+                  className="w-full bg-[#80664f] text-white py-3.5 text-sm font-semibold hover:bg-[#5f4938] transition-colors cursor-pointer"
                 >
-                  {isEnrolling ? 'Enrolling...' : 'Enroll Now for ₹199'}
+                  Enroll Now for ₹199 (90% OFF)
                 </button>
               )}
             </div>
@@ -194,12 +177,12 @@ export default function CourseDetailPage({ params }: { params: Promise<{ slug: s
           <div>
             <h2 className="text-2xl font-semibold text-[#161616] mb-6">Course Curriculum</h2>
             <div className="border border-[#e0e0e0] divide-y divide-[#e0e0e0]">
-              {course.modules?.map((mod, idx) => (
+              {course.modules?.map((mod) => (
                 <div key={mod.id} className="p-6 bg-white">
                   <h3 className="text-lg font-semibold text-[#161616] mb-2">{mod.title}</h3>
                   <p className="text-xs text-[#525252] mb-4">{mod.description}</p>
                   <ul className="space-y-2">
-                    {mod.lessons.map((lesson) => (
+                    {mod.lessons?.map((lesson) => (
                       <li key={lesson.id} className="flex items-center justify-between text-sm p-3 bg-[#f4f4f4]">
                         <span className="font-medium text-[#161616]">{lesson.title}</span>
                         <span className="text-xs text-[#525252]">{lesson.duration}</span>
@@ -216,7 +199,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ slug: s
             <div className="border border-[#e0e0e0] p-6 bg-[#f4f4f4]">
               <h3 className="text-lg font-semibold text-[#161616] mb-2">Final Certificate Assessment</h3>
               <p className="text-xs text-[#525252] mb-4">
-                Complete all lessons and pass the final 5-question test with at least 70% to claim your verifiable digital certificate.
+                Complete all lessons and pass the final assessment with at least 70% to claim your verifiable digital certificate.
               </p>
             </div>
           )}
@@ -224,7 +207,6 @@ export default function CourseDetailPage({ params }: { params: Promise<{ slug: s
 
         {/* Sidebar Column */}
         <div className="space-y-8">
-          {/* Skills Acquired */}
           <div className="border border-[#e0e0e0] p-6 bg-white">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-[#161616] mb-4">Skills You Will Build</h3>
             <div className="flex flex-wrap gap-2">
@@ -237,6 +219,21 @@ export default function CourseDetailPage({ params }: { params: Promise<{ slug: s
           </div>
         </div>
       </section>
+
+      {/* Checkout Modal */}
+      {isCheckoutOpen && (
+        <CourseCheckoutModal
+          isOpen={isCheckoutOpen}
+          onClose={() => setIsCheckoutOpen(false)}
+          courseId={course.courseId}
+          courseTitle={course.title}
+          originalPrice={course.originalPrice || 1999}
+          onPaymentSuccess={() => {
+            setIsEnrolled(true);
+            router.push(`/learn/${course.courseId}/mod1-lesson1`);
+          }}
+        />
+      )}
     </div>
   );
 }

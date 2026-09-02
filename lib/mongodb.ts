@@ -1,4 +1,4 @@
-import { getD1Database } from './d1';
+import { getD1Database, ensureD1Tables } from './d1';
 
 // Global memory cache for edge worker isolates
 const globalEdgeStore: Record<string, any[]> = {};
@@ -18,6 +18,8 @@ function matchFilter(item: any, filter: any): boolean {
     if (filterVal && typeof filterVal === 'object') {
       if (filterVal.$oid) {
         if (String(itemVal) !== String(filterVal.$oid)) return false;
+      } else if (filterVal.$in && Array.isArray(filterVal.$in)) {
+        if (!filterVal.$in.includes(itemVal)) return false;
       }
     } else if (filterVal !== undefined && itemVal !== undefined) {
       if (String(itemVal).toLowerCase() !== String(filterVal).toLowerCase()) {
@@ -26,6 +28,23 @@ function matchFilter(item: any, filter: any): boolean {
     }
   }
   return true;
+}
+
+function parseD1Row(row: any): any {
+  if (!row) return null;
+  const parsed = { ...row };
+  parsed._id = row.id || row.courseId || row.certificateId || row._id;
+
+  // Auto-parse JSON string fields
+  const jsonFields = ['profile', 'instructor', 'skills', 'modules', 'tests', 'completedLessons', 'testStatus', 'certificateStatus'];
+  for (const field of jsonFields) {
+    if (typeof parsed[field] === 'string') {
+      try {
+        parsed[field] = JSON.parse(parsed[field]);
+      } catch {}
+    }
+  }
+  return parsed;
 }
 
 class EdgeQuery<T> {
@@ -56,13 +75,15 @@ class EdgeQuery<T> {
     const db = getD1Database();
     if (db) {
       try {
+        await ensureD1Tables(db);
         const filterKeys = Object.keys(this.filter || {});
         let query = `SELECT * FROM ${this.collection}`;
         const params: any[] = [];
 
         if (filterKeys.length > 0) {
           const conditions = filterKeys.map(k => {
-            params.push(this.filter[k]);
+            const val = this.filter[k];
+            params.push(val);
             return `${k} = ?`;
           });
           query += ` WHERE ${conditions.join(' AND ')}`;
@@ -71,14 +92,17 @@ class EdgeQuery<T> {
         if (this.findOneMode) {
           query += ' LIMIT 1';
           const row = await db.prepare(query).bind(...params).first();
-          if (!row) return null;
-          return new this.modelClass({ ...row, _id: row.id || row.courseId || row.certificateId });
+          if (row) {
+            return new this.modelClass(parseD1Row(row));
+          }
         } else {
           const { results } = await db.prepare(query).bind(...params).all();
-          return (results || []).map((r: any) => new this.modelClass({ ...r, _id: r.id || r.courseId || r.certificateId }));
+          if (results && results.length > 0) {
+            return results.map((r: any) => new this.modelClass(parseD1Row(r)));
+          }
         }
       } catch (err: any) {
-        // Fallback to local memory store if table not queried
+        // Fallback to local memory store
       }
     }
 
@@ -110,6 +134,7 @@ export class AtlasModel<T> {
 
     if (db) {
       try {
+        await ensureD1Tables(db);
         const keys = Object.keys(normalizedDoc).filter(k => k !== '_id');
         const placeholders = keys.map(() => '?').join(', ');
         const values = keys.map(k => {
@@ -123,7 +148,12 @@ export class AtlasModel<T> {
     }
 
     const store = getEdgeCollection(this.collection);
-    store.push(normalizedDoc);
+    const existingIdx = store.findIndex(item => item.id === id || (doc.email && item.email === doc.email));
+    if (existingIdx !== -1) {
+      store[existingIdx] = normalizedDoc;
+    } else {
+      store.push(normalizedDoc);
+    }
     return new this.modelClass(normalizedDoc);
   }
 
@@ -137,6 +167,7 @@ export class AtlasModel<T> {
 
     if (db) {
       try {
+        await ensureD1Tables(db);
         const updateKeys = Object.keys(updateData);
         const filterKeys = Object.keys(filter);
 
@@ -239,11 +270,14 @@ export function createModel<T>(collection: string) {
 
     async save() {
       const modelInstance = new AtlasModel<T>(collection, modelClass);
-      if (this.id || this._id) {
-        await modelInstance.updateOne({ id: this.id || this._id }, this);
+      const id = this.id || this._id;
+      if (id) {
+        await modelInstance.updateOne({ id }, this);
         return this;
       }
-      return modelInstance.create(this);
+      const created = await modelInstance.create(this);
+      Object.assign(this, created);
+      return this;
     }
   };
 
@@ -259,5 +293,9 @@ export function createModel<T>(collection: string) {
 }
 
 export async function connectToDatabase() {
+  const db = getD1Database();
+  if (db) {
+    await ensureD1Tables(db);
+  }
   return true;
 }

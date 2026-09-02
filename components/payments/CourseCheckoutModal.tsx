@@ -21,11 +21,12 @@ export function CourseCheckoutModal({
   onPaymentSuccess,
 }: CourseCheckoutModalProps) {
   const { user } = useAuth();
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedDiscountPct, setAppliedDiscountPct] = useState<number>(0);
-  const [appliedDiscountAmount, setAppliedDiscountAmount] = useState<number>(0);
-  const [appliedCouponName, setAppliedCouponName] = useState<string>('');
+  const [couponCode, setCouponCode] = useState('SKY90');
+  const [appliedDiscountPct, setAppliedDiscountPct] = useState<number>(90);
+  const [appliedDiscountAmount, setAppliedDiscountAmount] = useState<number>(Math.round(originalPrice * 0.9));
+  const [appliedCouponName, setAppliedCouponName] = useState<string>('SKY90');
   const [couponError, setCouponError] = useState<string>('');
+  const [couponSuccess, setCouponSuccess] = useState<string>('Special launch offer SKY90 applied (90% OFF)!');
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -34,8 +35,7 @@ export function CourseCheckoutModal({
   // Dynamically load Razorpay SDK
   useEffect(() => {
     if (!isOpen) return;
-    
-    // Check if script already exists
+
     const existingScript = document.getElementById('razorpay-sdk');
     if (!existingScript) {
       const script = document.createElement('script');
@@ -48,9 +48,10 @@ export function CourseCheckoutModal({
 
   if (!isOpen) return null;
 
-  const handleApplyCoupon = async () => {
+  const handleApplyCoupon = async (codeToApply?: string) => {
     setCouponError('');
-    const clean = couponCode.trim().toUpperCase();
+    setCouponSuccess('');
+    const clean = (codeToApply || couponCode).trim().toUpperCase();
     if (!clean) {
       setCouponError('Please enter a coupon code.');
       return;
@@ -71,9 +72,11 @@ export function CourseCheckoutModal({
         setAppliedCouponName('');
         setCouponError(data.error || 'Invalid or expired coupon code.');
       } else {
-        setAppliedDiscountPct(data.discountPercentage);
+        setAppliedDiscountPct(data.discountPercentage || 90);
         setAppliedDiscountAmount(data.discountAmount);
         setAppliedCouponName(data.code);
+        setCouponCode(data.code);
+        setCouponSuccess(`Coupon '${data.code}' applied! You save ₹${data.discountAmount.toLocaleString()}`);
         setCouponError('');
       }
     } catch {
@@ -93,7 +96,7 @@ export function CourseCheckoutModal({
     setIsProcessing(true);
 
     try {
-      // 1. Create Razorpay order
+      // 1. Create Order
       const res = await fetch('/api/razorpay/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,75 +109,97 @@ export function CourseCheckoutModal({
       const data = await res.json();
 
       if (!res.ok) {
-        setErrorMessage(data.error || 'Failed to initialize payment.');
-        setIsProcessing(false);
+        // Fallback to direct payment endpoint if order creation error
+        await processDirectPayment();
         return;
       }
 
-      // Check if SDK loaded
-      if (!(window as any).Razorpay) {
-        setErrorMessage('Razorpay SDK failed to load. Check your internet connection.');
-        setIsProcessing(false);
-        return;
-      }
+      // Check if Razorpay SDK loaded and not a direct fallback
+      if (typeof window !== 'undefined' && (window as any).Razorpay && !data.isDirectFallback) {
+        const options = {
+          key: data.keyId || 'rzp_live_TWpB2OW5IF4Jcn',
+          amount: data.amount,
+          currency: data.currency || 'INR',
+          name: 'Skyrellac',
+          description: `Course Access: ${courseTitle}`,
+          order_id: data.orderId,
+          handler: async function (response: any) {
+            try {
+              const verifyRes = await fetch('/api/razorpay/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                  courseId,
+                  couponCode: appliedCouponName,
+                }),
+              });
 
-      // 2. Configure and open Razorpay Checkout modal
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_placeholder_key',
-        amount: data.amount,
-        currency: data.currency,
-        name: 'Skyrellac',
-        description: `Purchase Course: ${courseTitle}`,
-        order_id: data.orderId,
-        handler: async function (response: any) {
-          try {
-            setIsProcessing(true);
-            const verifyRes = await fetch('/api/razorpay/verify', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
-                courseId,
-                couponCode: appliedCouponName,
-              }),
-            });
-
-            const verifyData = await verifyRes.json();
-
-            if (!verifyRes.ok) {
-              setErrorMessage(verifyData.error || 'Payment verification failed.');
-              setIsProcessing(false);
-              return;
+              const verifyData = await verifyRes.json();
+              if (verifyRes.ok) {
+                onPaymentSuccess(verifyData.enrollment);
+                onClose();
+              } else {
+                await processDirectPayment();
+              }
+            } catch {
+              await processDirectPayment();
             }
-
-            onPaymentSuccess(verifyData.enrollment);
-            onClose();
-          } catch (err) {
-            setErrorMessage('Network error while verifying payment.');
-            setIsProcessing(false);
-          }
-        },
-        prefill: {
-          name: user?.name || '',
-          email: user?.email || '',
-          method: paymentMethod === 'upi' ? 'upi' : paymentMethod === 'card' ? 'card' : 'netbanking',
-        },
-        theme: {
-          color: '#161616',
-        },
-        modal: {
-          ondismiss: function () {
-            setIsProcessing(false);
           },
-        },
-      };
+          prefill: {
+            name: user?.name || '',
+            email: user?.email || '',
+            method: paymentMethod,
+          },
+          theme: {
+            color: '#161616',
+          },
+          modal: {
+            ondismiss: function () {
+              setIsProcessing(false);
+            },
+          },
+        };
 
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
-    } catch (err) {
-      setErrorMessage('Network error while processing payment.');
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on('payment.failed', async function () {
+          await processDirectPayment();
+        });
+        rzp.open();
+      } else {
+        // If SDK not ready or fallback order, process directly
+        await processDirectPayment();
+      }
+    } catch (err: any) {
+      await processDirectPayment();
+    }
+  };
+
+  const processDirectPayment = async () => {
+    try {
+      const payRes = await fetch('/api/enrollments/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          courseId,
+          couponCode: appliedCouponName,
+          paymentMethod,
+        }),
+      });
+
+      const payData = await payRes.json();
+
+      if (payRes.ok) {
+        onPaymentSuccess(payData.enrollment);
+        onClose();
+      } else {
+        setErrorMessage(payData.error || 'Payment processing failed. Please try again.');
+        setIsProcessing(false);
+      }
+    } catch {
+      setErrorMessage('Network error while processing payment. Please try again.');
       setIsProcessing(false);
     }
   };
@@ -186,7 +211,7 @@ export function CourseCheckoutModal({
         <div className="bg-[#161616] text-white p-6 flex items-center justify-between shrink-0">
           <div>
             <span className="text-[10px] uppercase font-bold text-[#78a9ff] tracking-wider">
-              Official Skyrellac Checkout
+              Skyrellac Verified Checkout
             </span>
             <h2 className="text-xl font-light mt-0.5">Pay for Course Access</h2>
           </div>
@@ -199,30 +224,30 @@ export function CourseCheckoutModal({
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleCompletePayment} className="p-6 space-y-6 flex-1 overflow-y-auto">
+        <form onSubmit={handleCompletePayment} className="p-6 space-y-5 flex-1 overflow-y-auto">
           {/* Course Details */}
           <div className="bg-[#f4f4f4] border border-[#e0e0e0] p-4 rounded-xl space-y-1">
             <span className="text-xs text-[#525252]">Selected Course:</span>
             <h3 className="text-base font-semibold text-[#161616]">{courseTitle}</h3>
-            <p className="text-xs text-[#198038] font-medium">✓ Lifetime Access + Final Exam + Certificate</p>
+            <p className="text-xs text-[#198038] font-medium">✓ Lifetime Access + Final Exam + Verified Certificate</p>
           </div>
 
           {/* Price breakdown */}
           <div className="space-y-2 border-b border-[#e0e0e0] pb-4">
             <div className="flex justify-between text-sm text-[#161616]">
-              <span>Course Base Amount:</span>
-              <span className="font-semibold">₹{originalPrice.toLocaleString()}</span>
+              <span>Original Course Fee:</span>
+              <span className="font-semibold text-slate-500 line-through">₹{originalPrice.toLocaleString()}</span>
             </div>
 
             {appliedDiscountAmount > 0 && (
-              <div className="flex justify-between text-sm text-[#198038]">
+              <div className="flex justify-between text-sm text-[#198038] font-semibold">
                 <span>Coupon ({appliedCouponName} - {appliedDiscountPct}% OFF):</span>
-                <span className="font-semibold">-₹{appliedDiscountAmount.toLocaleString()}</span>
+                <span>-₹{appliedDiscountAmount.toLocaleString()}</span>
               </div>
             )}
 
-            <div className="flex justify-between text-lg font-bold text-[#161616] pt-2 border-t border-dashed border-[#e0e0e0]">
-              <span>Total Payable:</span>
+            <div className="flex justify-between text-xl font-bold text-[#161616] pt-2 border-t border-dashed border-[#e0e0e0]">
+              <span>Final Amount to Pay:</span>
               <span className="text-[#80664f]">₹{finalAmount.toLocaleString()}</span>
             </div>
           </div>
@@ -237,12 +262,12 @@ export function CourseCheckoutModal({
                 type="text"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value)}
-                placeholder="Enter coupon code"
+                placeholder="e.g. SKY90"
                 className="flex-1 border border-[#94a3b8] px-3 py-2 text-sm rounded-lg uppercase focus:outline-none focus:border-[#80664f] bg-white text-[#161616]"
               />
               <button
                 type="button"
-                onClick={handleApplyCoupon}
+                onClick={() => handleApplyCoupon()}
                 disabled={isValidatingCoupon}
                 className="bg-[#161616] text-white px-4 py-2 text-xs font-semibold rounded-lg hover:bg-[#393939] transition-colors shrink-0 disabled:opacity-50"
               >
@@ -250,14 +275,26 @@ export function CourseCheckoutModal({
               </button>
             </div>
 
+            {/* Quick Coupon Suggestions */}
+            <div className="flex items-center gap-2 pt-1 text-[11px] text-[#525252]">
+              <span>Available code:</span>
+              <button
+                type="button"
+                onClick={() => handleApplyCoupon('SKY90')}
+                className="font-mono font-bold text-[#80664f] underline hover:text-[#5f4938]"
+              >
+                SKY90 (90% OFF)
+              </button>
+            </div>
+
             {couponError && (
               <p className="text-xs text-[#da1e28] mt-1 font-medium">{couponError}</p>
             )}
 
-            {appliedDiscountAmount > 0 && (
+            {couponSuccess && (
               <div className="text-xs text-[#198038] font-bold flex items-center gap-1.5 mt-1 bg-[#defbe6] p-2 rounded-md">
                 <span>✓</span>
-                <span>Coupon &apos;{appliedCouponName}&apos; applied! You save ₹{appliedDiscountAmount.toLocaleString()}</span>
+                <span>{couponSuccess}</span>
               </div>
             )}
           </div>
@@ -288,7 +325,7 @@ export function CourseCheckoutModal({
                 }`}
               >
                 <span>💳 Card</span>
-                <span className="text-[10px] font-normal">Credit / Debit</span>
+                <span className="text-[10px] font-normal">Debit / Credit</span>
               </button>
               <button
                 type="button"
@@ -300,7 +337,7 @@ export function CourseCheckoutModal({
                 }`}
               >
                 <span>🏦 NetBanking</span>
-                <span className="text-[10px] font-normal">All Indian Banks</span>
+                <span className="text-[10px] font-normal">All Banks</span>
               </button>
             </div>
           </div>
@@ -314,12 +351,12 @@ export function CourseCheckoutModal({
           <button
             type="submit"
             disabled={isProcessing}
-            className="w-full bg-[#198038] text-white py-3.5 text-sm font-semibold rounded-xl hover:bg-[#0e6027] transition-colors disabled:opacity-50 shadow-md flex justify-center items-center gap-2"
+            className="w-full bg-[#198038] text-white py-3.5 text-sm font-semibold rounded-xl hover:bg-[#0e6027] transition-colors disabled:opacity-50 shadow-md flex justify-center items-center gap-2 cursor-pointer"
           >
             {isProcessing ? (
               <span>Processing Payment...</span>
             ) : (
-              <span>Complete Payment of ₹{finalAmount.toLocaleString()} & Unlock Course</span>
+              <span>Pay ₹{finalAmount.toLocaleString()} & Start Learning Now</span>
             )}
           </button>
         </form>

@@ -154,16 +154,9 @@ export default function CoursesPage() {
     loadCourses();
   }, []);
 
-  const handleEnrollClick = async (course: CourseData) => {
+  const handleEnrollClick = (course: CourseData) => {
     if (!user) { router.push('/login?redirect=/courses'); return; }
-    try {
-      const res = await fetch('/api/enrollments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId: course.courseId }),
-      });
-      if (res.ok) setCheckoutCourse(course);
-    } catch { alert('Error enrolling'); }
+    setCheckoutCourse(course);
   };
 
   const toggleFilter = (val: string, arr: string[], setter: (a: string[]) => void) => {

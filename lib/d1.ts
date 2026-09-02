@@ -1,12 +1,24 @@
-// Cloudflare D1 Lightweight Helper
+// Cloudflare D1 Lightweight Helper with Context Detection
+
+let schemaInitialized = false;
 
 export function getD1Database(): any {
+  // 1. OpenNext Cloudflare global context symbol (production)
+  try {
+    const cfContext = (globalThis as any)[Symbol.for('__cloudflare-context__')];
+    if (cfContext?.env?.DB) {
+      return cfContext.env.DB;
+    }
+  } catch {}
+
+  // 2. Direct globalThis binding
   try {
     if (typeof (globalThis as any).DB !== 'undefined' && (globalThis as any).DB !== null) {
       return (globalThis as any).DB;
     }
   } catch {}
 
+  // 3. process.env binding
   try {
     if (typeof (process.env as any).DB !== 'undefined' && (process.env as any).DB !== null) {
       return (process.env as any).DB;
@@ -14,4 +26,141 @@ export function getD1Database(): any {
   } catch {}
 
   return null;
+}
+
+export async function ensureD1Tables(db: any) {
+  if (!db || schemaInitialized) return;
+
+  try {
+    // Single atomic exec call creates all tables without exceeding subrequest limits
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        fullName TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        passwordHash TEXT NOT NULL,
+        role TEXT DEFAULT 'student',
+        accountStatus TEXT DEFAULT 'active',
+        isActive INTEGER DEFAULT 1,
+        profile TEXT DEFAULT '{}',
+        registrationDate TEXT,
+        lastLogin TEXT,
+        createdAt TEXT,
+        updatedAt TEXT
+      );
+      CREATE TABLE IF NOT EXISTS courses (
+        courseId TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        instructor TEXT DEFAULT '{}',
+        image TEXT DEFAULT '',
+        originalPrice REAL DEFAULT 1999,
+        discountedPrice REAL DEFAULT 199,
+        discountPercentage REAL DEFAULT 90,
+        rating REAL DEFAULT 4.8,
+        studentsCount INTEGER DEFAULT 0,
+        category TEXT DEFAULT 'General',
+        difficulty TEXT DEFAULT 'Foundational',
+        durationMinutes INTEGER DEFAULT 300,
+        lessonCount INTEGER DEFAULT 10,
+        certificateEligible INTEGER DEFAULT 1,
+        isPublished INTEGER DEFAULT 1,
+        skills TEXT DEFAULT '[]',
+        modules TEXT DEFAULT '[]',
+        tests TEXT DEFAULT '[]',
+        createdAt TEXT,
+        updatedAt TEXT
+      );
+      CREATE TABLE IF NOT EXISTS enrollments (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        courseId TEXT NOT NULL,
+        enrollmentDate TEXT,
+        status TEXT DEFAULT 'active',
+        paymentStatus TEXT DEFAULT 'paid',
+        amountPaid REAL DEFAULT 199,
+        paymentDate TEXT,
+        progressPercentage REAL DEFAULT 0,
+        completedLessons TEXT DEFAULT '[]',
+        testStatus TEXT DEFAULT '[]',
+        certificateStatus TEXT DEFAULT '{}',
+        couponUsed TEXT DEFAULT '',
+        createdAt TEXT,
+        updatedAt TEXT,
+        UNIQUE(userId, courseId)
+      );
+      CREATE TABLE IF NOT EXISTS coupons (
+        id TEXT PRIMARY KEY,
+        code TEXT UNIQUE NOT NULL,
+        discountPercentage REAL DEFAULT 90,
+        discountAmount REAL DEFAULT 0,
+        type TEXT DEFAULT 'percentage',
+        applicableTo TEXT DEFAULT 'all',
+        maxUses INTEGER DEFAULT 1000,
+        currentUses INTEGER DEFAULT 0,
+        isActive INTEGER DEFAULT 1,
+        createdAt TEXT,
+        updatedAt TEXT
+      );
+      CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY,
+        transactionId TEXT UNIQUE NOT NULL,
+        userId TEXT NOT NULL,
+        userName TEXT,
+        userEmail TEXT,
+        amount REAL NOT NULL,
+        currency TEXT DEFAULT 'INR',
+        paymentStatus TEXT DEFAULT 'completed',
+        paymentMethod TEXT DEFAULT 'upi',
+        serviceType TEXT DEFAULT 'course',
+        serviceId TEXT NOT NULL,
+        serviceName TEXT NOT NULL,
+        couponUsed TEXT DEFAULT '',
+        discountAmount REAL DEFAULT 0,
+        gatewayReference TEXT,
+        createdAt TEXT,
+        updatedAt TEXT
+      );
+      CREATE TABLE IF NOT EXISTS certificates (
+        certificateId TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        courseId TEXT,
+        userName TEXT NOT NULL,
+        courseTitle TEXT NOT NULL,
+        issueDate TEXT,
+        completionDate TEXT,
+        testScore REAL DEFAULT 0,
+        testTotal REAL DEFAULT 100,
+        authorizedIssuer TEXT DEFAULT 'Skyrellac Global Credentials',
+        createdAt TEXT,
+        updatedAt TEXT
+      );
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        courseId TEXT,
+        courseTitle TEXT,
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        dueDate TEXT,
+        status TEXT DEFAULT 'pending',
+        createdAt TEXT,
+        updatedAt TEXT
+      );
+      CREATE TABLE IF NOT EXISTS feedbacks (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        courseId TEXT NOT NULL,
+        rating REAL NOT NULL,
+        review TEXT DEFAULT '',
+        createdAt TEXT,
+        updatedAt TEXT,
+        UNIQUE(userId, courseId)
+      );
+    `);
+    schemaInitialized = true;
+  } catch (err: any) {
+    // If exec fails or already exists, proceed gracefully
+    schemaInitialized = true;
+  }
 }
