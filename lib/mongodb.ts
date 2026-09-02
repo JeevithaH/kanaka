@@ -261,7 +261,7 @@ export function createModel<T>(collection: string) {
 export async function connectToDatabase() {
   if (mongoose.connection.readyState === 1) return true;
 
-  const defaultUri = 'mongodb+srv://skyrellac:skyrellac123@cluster0.mongodb.net/skyrellac?retryWrites=true&w=majority';
+  const defaultUri = 'mongodb+srv://kanakaambara65_db_user:kiXbnPqWN1rEoc1u@cluster0.afjssmq.mongodb.net/skyrellac?retryWrites=true&w=majority';
   const rawUri = process.env.MONGODB_URI || defaultUri;
   const cleanUri = rawUri.replace(/wmode=/g, 'w=').trim();
 
