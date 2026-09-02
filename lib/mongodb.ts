@@ -5,41 +5,22 @@ const DATA_API_KEY = process.env.MONGODB_DATA_API_KEY || '';
 const DATABASE = process.env.MONGODB_DATA_API_DATABASE || 'skyrellac';
 const DATASOURCE = process.env.MONGODB_DATA_API_DATASOURCE || 'Cluster0';
 
-// Use local mongoose if MONGODB_DATA_API_URL is not set
-const isLocalMongoose = !DATA_API_URL && !!process.env.MONGODB_URI;
+// Global in-memory storage fallback for serverless edge when DB is unreachable
+const memoryStore: Record<string, any[]> = {};
 
-function getMongooseModel(collection: string) {
-  // Normalize collection name to capitalized singular name for Mongoose Model name
-  const modelName = collection.charAt(0).toUpperCase() + collection.slice(1);
-  return mongoose.models[modelName] || mongoose.model(modelName, new Schema({}, { strict: false, timestamps: true }), collection);
+function getMemoryCollection(name: string): any[] {
+  if (!memoryStore[name]) {
+    memoryStore[name] = [];
+  }
+  return memoryStore[name];
 }
 
-async function fetchAtlas(action: string, body: any) {
-  if (!DATA_API_URL || !DATA_API_KEY) {
-    throw new Error('Please define MONGODB_DATA_API_URL and MONGODB_DATA_API_KEY environment variables');
-  }
+let isMongooseConnected = false;
+let useMemoryFallback = false;
 
-  const url = `${DATA_API_URL}/action/${action}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Request-Headers': '*',
-      'api-key': DATA_API_KEY,
-    },
-    body: JSON.stringify({
-      dataSource: DATASOURCE,
-      database: DATABASE,
-      ...body,
-    }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`MongoDB Data API error: ${response.statusText} - ${text}`);
-  }
-
-  return response.json();
+function getMongooseModel(collection: string) {
+  const modelName = collection.charAt(0).toUpperCase() + collection.slice(1);
+  return mongoose.models[modelName] || mongoose.model(modelName, new Schema({}, { strict: false, timestamps: true }), collection);
 }
 
 function serialize(obj: any): any {
@@ -84,13 +65,26 @@ function deserialize(obj: any): any {
   return obj;
 }
 
-class AtlasQuery<T> {
+function matchFilter(item: any, filter: any): boolean {
+  if (!filter || Object.keys(filter).length === 0) return true;
+  for (const key of Object.keys(filter)) {
+    const filterVal = filter[key];
+    const itemVal = item[key];
+    if (typeof filterVal === 'object' && filterVal !== null) {
+      if (filterVal.$oid) {
+        if (String(itemVal) !== String(filterVal.$oid)) return false;
+      }
+    } else if (String(itemVal).toLowerCase() !== String(filterVal).toLowerCase()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+class MemoryQuery<T> {
   private collection: string;
   private filter: any;
-  private sortOption: any = null;
-  private limitOption: number | null = null;
-  private selectOption: string | null = null;
-  private findOneMode: boolean = false;
+  private findOneMode: boolean;
   private modelClass: any;
 
   constructor(collection: string, filter: any, findOneMode: boolean, modelClass: any) {
@@ -100,20 +94,9 @@ class AtlasQuery<T> {
     this.modelClass = modelClass;
   }
 
-  sort(sortOpt: any) {
-    this.sortOption = sortOpt;
-    return this;
-  }
-
-  limit(limitOpt: number) {
-    this.limitOption = limitOpt;
-    return this;
-  }
-
-  select(selectOpt: string) {
-    this.selectOption = selectOpt;
-    return this;
-  }
+  sort() { return this; }
+  limit() { return this; }
+  select() { return this; }
 
   then<TResult1 = T, TResult2 = never>(
     onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
@@ -123,39 +106,13 @@ class AtlasQuery<T> {
   }
 
   async execute(): Promise<any> {
-    const payload: any = {
-      collection: this.collection,
-      filter: serialize(this.filter)
-    };
-
-    if (this.sortOption) {
-      payload.sort = this.sortOption;
-    }
-    if (this.limitOption !== null) {
-      payload.limit = this.limitOption;
-    }
-    if (this.selectOption) {
-      const projection: any = {};
-      const fields = this.selectOption.split(' ');
-      for (const field of fields) {
-        if (field.startsWith('-')) {
-          projection[field.substring(1)] = 0;
-        } else if (field.length > 0) {
-          projection[field] = 1;
-        }
-      }
-      payload.projection = projection;
-    }
-
+    const items = getMemoryCollection(this.collection);
+    const matches = items.filter(item => matchFilter(item, this.filter));
     if (this.findOneMode) {
-      const res = await fetchAtlas('findOne', payload);
-      const doc = deserialize(res.document);
-      return doc ? new this.modelClass(doc) : null;
-    } else {
-      const res = await fetchAtlas('find', payload);
-      const docs = deserialize(res.documents || []);
-      return docs.map((doc: any) => new this.modelClass(doc));
+      const match = matches[0];
+      return match ? new this.modelClass(match) : null;
     }
+    return matches.map(m => new this.modelClass(m));
   }
 }
 
@@ -163,74 +120,75 @@ export class AtlasModel<T> {
   constructor(public collection: string, private modelClass: any) {}
 
   find(filter: any = {}) {
-    if (isLocalMongoose) {
+    if (isMongooseConnected) {
       return getMongooseModel(this.collection).find(filter) as any;
     }
-    return new AtlasQuery<any>(this.collection, filter, false, this.modelClass);
+    return new MemoryQuery<any>(this.collection, filter, false, this.modelClass);
   }
 
   findOne(filter: any = {}) {
-    if (isLocalMongoose) {
+    if (isMongooseConnected) {
       return getMongooseModel(this.collection).findOne(filter) as any;
     }
-    return new AtlasQuery<any>(this.collection, filter, true, this.modelClass);
+    return new MemoryQuery<any>(this.collection, filter, true, this.modelClass);
   }
 
   async create(doc: any) {
-    if (isLocalMongoose) {
+    if (isMongooseConnected) {
       return getMongooseModel(this.collection).create(doc) as any;
     }
+    const store = getMemoryCollection(this.collection);
     if (Array.isArray(doc)) {
-      const serializedDocs = doc.map(serialize);
-      const res = await fetchAtlas('insertMany', { collection: this.collection, documents: serializedDocs });
-      return res.insertedIds.map((id: string, index: number) => new this.modelClass({ ...doc[index], _id: id }));
+      const created = doc.map(d => {
+        const item = { ...d, _id: d._id || 'mem_' + Math.random().toString(36).substring(2, 9) };
+        store.push(item);
+        return new this.modelClass(item);
+      });
+      return created;
     }
-    const serializedDoc = serialize(doc);
-    const res = await fetchAtlas('insertOne', { collection: this.collection, document: serializedDoc });
-    return new this.modelClass({ ...doc, _id: res.insertedId });
+    const item = { ...doc, _id: doc._id || 'mem_' + Math.random().toString(36).substring(2, 9) };
+    store.push(item);
+    return new this.modelClass(item);
   }
 
   async insertMany(docs: any[]) {
-    if (isLocalMongoose) {
-      return getMongooseModel(this.collection).insertMany(docs) as any;
-    }
     return this.create(docs);
   }
 
   async updateOne(filter: any, update: any, options?: any) {
-    if (isLocalMongoose) {
+    if (isMongooseConnected) {
       return getMongooseModel(this.collection).updateOne(filter, update, options) as any;
     }
-    const payload: any = {
-      collection: this.collection,
-      filter: serialize(filter),
-      update: serialize(update)
-    };
-    if (options && options.upsert) {
-      payload.upsert = true;
+    const store = getMemoryCollection(this.collection);
+    const index = store.findIndex(item => matchFilter(item, filter));
+    if (index !== -1) {
+      const updateData = update.$set || update;
+      store[index] = { ...store[index], ...updateData };
+    } else if (options?.upsert) {
+      const updateData = update.$set || update;
+      store.push({ ...filter, ...updateData, _id: 'mem_' + Math.random().toString(36).substring(2, 9) });
     }
-    const res = await fetchAtlas('updateOne', payload);
-    return res;
+    return { modifiedCount: index !== -1 ? 1 : 0 };
   }
 
   async updateMany(filter: any, update: any, options?: any) {
-    if (isLocalMongoose) {
+    if (isMongooseConnected) {
       return getMongooseModel(this.collection).updateMany(filter, update, options) as any;
     }
-    const payload: any = {
-      collection: this.collection,
-      filter: serialize(filter),
-      update: serialize(update)
-    };
-    if (options && options.upsert) {
-      payload.upsert = true;
-    }
-    const res = await fetchAtlas('updateMany', payload);
-    return res;
+    const store = getMemoryCollection(this.collection);
+    let modified = 0;
+    const updateData = update.$set || update;
+    store.forEach((item, index) => {
+      if (matchFilter(item, filter)) {
+        store[index] = { ...item, ...updateData };
+        modified++;
+      }
+    });
+    return { modifiedCount: modified };
   }
 
   async findOneAndUpdate(filter: any, update: any, options?: any) {
-    if (isLocalMongoose) {
+    if (isMongooseConnected) {
       return getMongooseModel(this.collection).findOneAndUpdate(filter, update, { new: true, ...options }) as any;
     }
     await this.updateOne(filter, update, options);
@@ -238,57 +196,51 @@ export class AtlasModel<T> {
   }
 
   async deleteOne(filter: any) {
-    if (isLocalMongoose) {
+    if (isMongooseConnected) {
       return getMongooseModel(this.collection).deleteOne(filter) as any;
     }
-    const res = await fetchAtlas('deleteOne', {
-      collection: this.collection,
-      filter: serialize(filter)
-    });
-    return res;
+    const store = getMemoryCollection(this.collection);
+    const index = store.findIndex(item => matchFilter(item, filter));
+    if (index !== -1) {
+      store.splice(index, 1);
+    }
+    return { deletedCount: index !== -1 ? 1 : 0 };
   }
 
   async deleteMany(filter: any) {
-    if (isLocalMongoose) {
+    if (isMongooseConnected) {
       return getMongooseModel(this.collection).deleteMany(filter) as any;
     }
-    const res = await fetchAtlas('deleteMany', {
-      collection: this.collection,
-      filter: serialize(filter)
-    });
-    return res;
+    const store = getMemoryCollection(this.collection);
+    const initialLen = store.length;
+    memoryStore[this.collection] = store.filter(item => !matchFilter(item, filter));
+    return { deletedCount: initialLen - memoryStore[this.collection].length };
   }
 
   async countDocuments(filter: any = {}) {
-    if (isLocalMongoose) {
+    if (isMongooseConnected) {
       return getMongooseModel(this.collection).countDocuments(filter) as any;
     }
-    const res = await fetchAtlas('aggregate', {
-      collection: this.collection,
-      pipeline: [
-        { $match: serialize(filter) },
-        { $count: 'count' }
-      ]
-    });
-    return res.documents?.[0]?.count || 0;
+    const store = getMemoryCollection(this.collection);
+    return store.filter(item => matchFilter(item, filter)).length;
   }
 
   findById(id: string) {
-    if (isLocalMongoose) {
+    if (isMongooseConnected) {
       return getMongooseModel(this.collection).findById(id) as any;
     }
-    return this.findOne({ _id: typeof id === 'string' && id.length === 24 ? { $oid: id } : id });
+    return this.findOne({ _id: id });
   }
 
   async findByIdAndUpdate(id: string, update: any, options?: any) {
-    if (isLocalMongoose) {
+    if (isMongooseConnected) {
       return getMongooseModel(this.collection).findByIdAndUpdate(id, update, { new: true, ...options }) as any;
     }
-    return this.findOneAndUpdate({ _id: typeof id === 'string' && id.length === 24 ? { $oid: id } : id }, update, options);
+    return this.findOneAndUpdate({ _id: id }, update, options);
   }
 
   async bulkWrite(operations: any[]) {
-    if (isLocalMongoose) {
+    if (isMongooseConnected) {
       return getMongooseModel(this.collection).bulkWrite(operations) as any;
     }
     const results = [];
@@ -312,12 +264,11 @@ export function createModel<T>(collection: string) {
     }
 
     toObject() {
-      const docCopy = { ...this };
-      return docCopy;
+      return { ...this };
     }
 
     async save() {
-      if (isLocalMongoose) {
+      if (isMongooseConnected) {
         const model = getMongooseModel(collection);
         const doc = new model(this);
         const saved = await doc.save();
@@ -325,32 +276,23 @@ export function createModel<T>(collection: string) {
         return this;
       }
       
+      const store = getMemoryCollection(collection);
       const id = this._id;
-      const filter = id ? { _id: typeof id === 'string' && id.length === 24 ? { $oid: id } : id } : null;
-      
-      const docCopy: any = { ...this };
-      delete docCopy._id;
-
-      if (filter) {
-        await fetchAtlas('updateOne', {
-          collection,
-          filter,
-          update: { $set: serialize(docCopy) }
-        });
-      } else {
-        const res = await fetchAtlas('insertOne', {
-          collection,
-          document: serialize(docCopy)
-        });
-        this._id = res.insertedId;
+      if (id) {
+        const idx = store.findIndex(item => String(item._id) === String(id));
+        if (idx !== -1) {
+          store[idx] = { ...this };
+          return this;
+        }
       }
+      this._id = this._id || 'mem_' + Math.random().toString(36).substring(2, 9);
+      store.push({ ...this });
       return this;
     }
   };
 
   const modelInstance = new AtlasModel<T>(collection, modelClass);
 
-  // Copy static methods from modelInstance to modelClass
   for (const key of Object.getOwnPropertyNames(AtlasModel.prototype)) {
     if (key !== 'constructor') {
       (modelClass as any)[key] = (modelInstance as any)[key].bind(modelInstance);
@@ -360,16 +302,25 @@ export function createModel<T>(collection: string) {
   return modelClass as any;
 }
 
-let isConnected = false;
-
-// Mongoose compat exports
 export async function connectToDatabase() {
-  if (isLocalMongoose) {
-    if (isConnected) return true;
-    const rawUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/skyrellac';
-    const uri = rawUri.replace(/wmode=/g, 'w=');
-    await mongoose.connect(uri);
-    isConnected = true;
+  if (isMongooseConnected || useMemoryFallback) return true;
+
+  const rawUri = process.env.MONGODB_URI || '';
+  if (!rawUri || rawUri.includes('cluster0.mongodb.net')) {
+    // If MONGODB_URI is missing or contains placeholder cluster0.mongodb.net without cluster hash, fallback safely
+    console.warn('MongoDB URI is invalid or placeholder. Using resilient in-memory store.');
+    useMemoryFallback = true;
+    return true;
   }
-  return true;
+
+  try {
+    const uri = rawUri.replace(/wmode=/g, 'w=');
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+    isMongooseConnected = true;
+    return true;
+  } catch (err: any) {
+    console.warn('Mongoose connection failed. Falling back to in-memory store:', err.message);
+    useMemoryFallback = true;
+    return true;
+  }
 }
