@@ -31,9 +31,9 @@ function StudentSidebarContent() {
     {
       title: 'MY LEARNING',
       items: [
-        { name: 'Home', href: '/dashboard', icon: Home, tab: 'all' },
+        { name: 'Dashboard', href: '/dashboard', icon: Home, tab: 'all' },
         { name: 'In Progress Courses', href: '/dashboard?tab=courses', icon: BookOpen, tab: 'courses' },
-        { name: 'Learning Paths', href: '/learning-paths', icon: Compass },
+        { name: 'Learning paths', href: '/learning-paths', icon: Compass },
       ],
     },
     {
@@ -41,13 +41,13 @@ function StudentSidebarContent() {
       items: [
         { name: 'Assignments & Tests', href: '/dashboard?tab=tasks', icon: FileCheck2, tab: 'tasks' },
         { name: 'Internships', href: '/internships', icon: Briefcase },
-        { name: 'Accomplishments', href: '/credentials', icon: Award },
+        { name: 'Credentials', href: '/credentials', icon: Award },
       ],
     },
     {
       title: 'EXPLORE',
       items: [
-        { name: 'Course Catalog', href: '/courses', icon: ExternalLink },
+        { name: 'Courses Catalog', href: '/courses', icon: ExternalLink },
       ],
     },
   ];
@@ -62,23 +62,21 @@ function StudentSidebarContent() {
     : 'ST';
 
   return (
-    <aside className="w-64 min-h-screen bg-white border-r border-slate-200 flex flex-col justify-between p-4 sticky top-0 shrink-0 font-sans">
+    <aside className="w-64 min-h-screen bg-white border-r border-[#e8e2db] flex flex-col justify-between p-4 sticky top-0 shrink-0 font-sans shadow-xs">
       <div className="space-y-6">
-        {/* Coursera-style Brand Header */}
-        <Link href="/dashboard" className="flex items-center gap-3 px-2 py-2">
-          <div className="w-9 h-9 rounded-lg overflow-hidden shadow-sm shrink-0 border border-slate-200 bg-white relative">
+        {/* Brand Header matching screenshot */}
+        <Link href="/" className="flex items-center gap-3 px-2 py-2">
+          <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-[#e8e2db] bg-white relative shadow-xs">
             <Image
               src="/images/logo.jpeg"
-              alt="Skyrellac"
+              alt="Skyrellac Logo"
               fill
               className="object-cover"
             />
           </div>
           <div className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <span className="text-base font-bold tracking-tight text-slate-900">Skyrellac</span>
-            </div>
-            <span className="text-[11px] font-semibold text-[#0056D2]">Learner Portal</span>
+            <span className="text-sm font-black tracking-wider text-[#241e1a] uppercase">SKYRELLAC</span>
+            <span className="text-[10px] font-bold text-[#80664f] tracking-widest uppercase">EDU • LEARNER</span>
           </div>
         </Link>
 
@@ -86,7 +84,7 @@ function StudentSidebarContent() {
         <nav className="space-y-6">
           {sections.map((section, idx) => (
             <div key={idx} className="space-y-1.5">
-              <h4 className="px-3 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+              <h4 className="px-3 text-[10px] font-bold tracking-wider text-[#8c8075] uppercase">
                 {section.title}
               </h4>
               <div className="space-y-0.5">
@@ -100,15 +98,15 @@ function StudentSidebarContent() {
                     <Link
                       key={item.name}
                       href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs transition-all ${
+                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all ${
                         isActive
-                          ? 'bg-blue-50 text-[#0056D2] font-bold border-l-4 border-[#0056D2] shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-medium'
+                          ? 'bg-[#80664f] text-white shadow-xs'
+                          : 'text-[#544940] hover:text-[#241e1a] hover:bg-[#f4efe9]'
                       }`}
                     >
                       <Icon
                         className={`w-4 h-4 ${
-                          isActive ? 'text-[#0056D2]' : 'text-slate-400 group-hover:text-slate-600'
+                          isActive ? 'text-white' : 'text-[#8c8075]'
                         }`}
                       />
                       <span>{item.name}</span>
@@ -121,25 +119,25 @@ function StudentSidebarContent() {
         </nav>
       </div>
 
-      {/* User profile snippet & Sign Out */}
-      <div className="pt-4 border-t border-slate-200 space-y-3">
+      {/* User profile snippet & Red Sign Out Button matching screenshot */}
+      <div className="pt-4 border-t border-[#e8e2db] space-y-3">
         <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-[#0056D2] text-white flex items-center justify-center text-xs font-bold">
+          <div className="w-8 h-8 rounded-full bg-[#80664f] text-white flex items-center justify-center text-xs font-bold shadow-xs">
             {userInitials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-slate-800 truncate">{user?.name || 'Learner'}</p>
-            <p className="text-[10px] text-slate-400 truncate">{user?.email || ''}</p>
+            <p className="text-xs font-bold text-[#241e1a] truncate">{user?.name || 'Preetham H'}</p>
+            <p className="text-[10px] text-[#8c8075] truncate">{user?.email || ''}</p>
           </div>
         </div>
 
         <button
           onClick={handleSignOut}
           type="button"
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-white bg-[#da1e28] hover:bg-[#b81922] transition-colors cursor-pointer shadow-xs"
         >
-          <LogOut className="w-4 h-4 text-slate-400" />
-          <span>Log Out</span>
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Sign out</span>
         </button>
       </div>
     </aside>
@@ -148,7 +146,7 @@ function StudentSidebarContent() {
 
 export const StudentSidebar: React.FC = () => {
   return (
-    <Suspense fallback={<aside className="w-64 min-h-screen bg-white border-r border-slate-200" />}>
+    <Suspense fallback={<aside className="w-64 min-h-screen bg-white border-r border-[#e8e2db]" />}>
       <StudentSidebarContent />
     </Suspense>
   );
