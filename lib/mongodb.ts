@@ -19,14 +19,12 @@ function convertSrvToDirectUri(srvUri: string): string {
 
   if (!cleanUri.startsWith('mongodb+srv://')) return cleanUri;
 
-  // Convert mongodb+srv://user:pass@host/db?query to direct mongodb:// 3-shard cluster endpoints
-  // This bypasses Node's dns.resolveSrv requirement in Cloudflare Workers / Edge Runtimes
   const match = cleanUri.match(/^mongodb\+srv:\/\/([^:]+):([^@]+)@([^/]+)\/([^?]+)(\?.*)?$/);
   if (!match) return cleanUri;
 
   const [, user, pass, host, db, query = ''] = match;
-  const clusterName = host.split('.')[0]; // e.g. cluster0
-  const domain = host.split('.').slice(1).join('.'); // e.g. mongodb.net
+  const clusterName = host.split('.')[0]; 
+  const domain = host.split('.').slice(1).join('.'); 
 
   const shard0 = `${clusterName}-shard-00-00.${domain}:27017`;
   const shard1 = `${clusterName}-shard-00-01.${domain}:27017`;
@@ -287,17 +285,27 @@ export async function connectToDatabase() {
   const defaultUri = 'mongodb+srv://skyrellac:skyrellac123@cluster0.mongodb.net/skyrellac?retryWrites=true&w=majority';
   const rawUri = process.env.MONGODB_URI || defaultUri;
 
+  // Try raw URI first
   try {
-    const directUri = convertSrvToDirectUri(rawUri);
-    console.log('Connecting to MongoDB Atlas via direct endpoints...');
-    await mongoose.connect(directUri, { serverSelectionTimeoutMS: 5000 });
+    const cleanUri = rawUri.replace(/wmode=/g, 'w=');
+    await mongoose.connect(cleanUri, { serverSelectionTimeoutMS: 4000 });
     isMongooseConnected = true;
     useMemoryFallback = false;
-    console.log('Successfully connected to MongoDB Atlas!');
+    console.log('Connected to MongoDB Atlas via raw URI!');
     return true;
-  } catch (err: any) {
-    console.warn('MongoDB direct connection failed, using fallback:', err.message);
-    useMemoryFallback = true;
-    return true;
+  } catch (err1: any) {
+    // Try converted direct URI
+    try {
+      const directUri = convertSrvToDirectUri(rawUri);
+      await mongoose.connect(directUri, { serverSelectionTimeoutMS: 4000 });
+      isMongooseConnected = true;
+      useMemoryFallback = false;
+      console.log('Connected to MongoDB Atlas via direct URI!');
+      return true;
+    } catch (err2: any) {
+      console.warn('MongoDB connection failed:', err2.message);
+      useMemoryFallback = true;
+      return true;
+    }
   }
 }
