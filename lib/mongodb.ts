@@ -366,7 +366,8 @@ let isConnected = false;
 export async function connectToDatabase() {
   if (isLocalMongoose) {
     if (isConnected) return true;
-    const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/skyrellac';
+    const rawUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/skyrellac';
+    const uri = rawUri.replace(/wmode=/g, 'w=');
     await mongoose.connect(uri);
     isConnected = true;
   }
