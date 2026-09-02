@@ -1,6 +1,6 @@
 import mongoose, { Schema } from 'mongoose';
 
-// Global in-memory storage for serverless edge / Cloudflare Workers
+// Global in-memory storage fallback for offline / disconnected state
 const memoryStore: Record<string, any[]> = {};
 
 function getMemoryCollection(name: string): any[] {
@@ -11,7 +11,31 @@ function getMemoryCollection(name: string): any[] {
 }
 
 let isMongooseConnected = false;
-let useMemoryFallback = true; // Default to true on edge/serverless for instant zero-error operation
+let useMemoryFallback = false;
+
+function convertSrvToDirectUri(srvUri: string): string {
+  if (!srvUri) return '';
+  const cleanUri = srvUri.trim().replace(/wmode=/g, 'w=');
+
+  if (!cleanUri.startsWith('mongodb+srv://')) return cleanUri;
+
+  // Convert mongodb+srv://user:pass@host/db?query to direct mongodb:// 3-shard cluster endpoints
+  // This bypasses Node's dns.resolveSrv requirement in Cloudflare Workers / Edge Runtimes
+  const match = cleanUri.match(/^mongodb\+srv:\/\/([^:]+):([^@]+)@([^/]+)\/([^?]+)(\?.*)?$/);
+  if (!match) return cleanUri;
+
+  const [, user, pass, host, db, query = ''] = match;
+  const clusterName = host.split('.')[0]; // e.g. cluster0
+  const domain = host.split('.').slice(1).join('.'); // e.g. mongodb.net
+
+  const shard0 = `${clusterName}-shard-00-00.${domain}:27017`;
+  const shard1 = `${clusterName}-shard-00-01.${domain}:27017`;
+  const shard2 = `${clusterName}-shard-00-02.${domain}:27017`;
+
+  const queryParams = query ? query.replace('?', '&') : '';
+
+  return `mongodb://${user}:${pass}@${shard0},${shard1},${shard2}/${db}?ssl=true&authSource=admin${queryParams}`;
+}
 
 function getMongooseModel(collection: string) {
   const modelName = collection.charAt(0).toUpperCase() + collection.slice(1);
@@ -258,23 +282,21 @@ export function createModel<T>(collection: string) {
 }
 
 export async function connectToDatabase() {
-  if (isMongooseConnected || useMemoryFallback) return true;
+  if (isMongooseConnected) return true;
 
-  const rawUri = process.env.MONGODB_URI || '';
-  
-  // Cloudflare Workers cannot resolve SRV DNS records (mongodb+srv://)
-  // Force memory fallback if URI is srv or invalid to prevent querySrv ENOTFOUND errors
-  if (!rawUri || rawUri.includes('+srv') || rawUri.includes('cluster0.mongodb.net')) {
-    useMemoryFallback = true;
-    return true;
-  }
+  const defaultUri = 'mongodb+srv://skyrellac:skyrellac123@cluster0.mongodb.net/skyrellac?retryWrites=true&w=majority';
+  const rawUri = process.env.MONGODB_URI || defaultUri;
 
   try {
-    const uri = rawUri.replace(/wmode=/g, 'w=');
-    await mongoose.connect(uri, { serverSelectionTimeoutMS: 3000 });
+    const directUri = convertSrvToDirectUri(rawUri);
+    console.log('Connecting to MongoDB Atlas via direct endpoints...');
+    await mongoose.connect(directUri, { serverSelectionTimeoutMS: 5000 });
     isMongooseConnected = true;
+    useMemoryFallback = false;
+    console.log('Successfully connected to MongoDB Atlas!');
     return true;
   } catch (err: any) {
+    console.warn('MongoDB direct connection failed, using fallback:', err.message);
     useMemoryFallback = true;
     return true;
   }
