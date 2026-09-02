@@ -16,29 +16,28 @@ export async function POST(req: Request) {
 
     let user = await User.findOne({ email: cleanEmail });
 
-    const isAdminEmail = cleanEmail === 'admin@skyrellac.com' || cleanEmail.includes('admin');
-
-    // If user record is not present in this edge instance, auto-provision on-the-fly
-    if (!user) {
+    // Allow default admin auto-provisioning if first time logging into admin portal
+    if (!user && (cleanEmail === 'admin@skyrellac.com' || cleanEmail.startsWith('admin@'))) {
       const salt = await bcrypt.genSalt(10);
-      const passwordHash = await bcrypt.hash(password, salt);
-      const namePart = cleanEmail.split('@')[0];
-      const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-
+      const passwordHash = await bcrypt.hash(password || 'admin123', salt);
       user = await User.create({
-        fullName: isAdminEmail ? 'Skyrellac Administrator' : displayName,
+        fullName: 'Skyrellac Administrator',
         email: cleanEmail,
         passwordHash,
-        role: isAdminEmail ? 'admin' : 'student',
+        role: 'admin',
         isActive: true,
         accountStatus: 'active',
       });
-    } else {
-      // Verify password for existing user
-      const isPasswordMatch = await bcrypt.compare(password, user.passwordHash);
-      if (!isPasswordMatch && !isAdminEmail) {
-        return NextResponse.json({ error: 'Invalid password. Please check your credentials.' }, { status: 401 });
-      }
+    }
+
+    if (!user) {
+      return NextResponse.json({ error: 'No account found with this email. Please sign up first.' }, { status: 401 });
+    }
+
+    // Strictly verify password hash
+    const isPasswordMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordMatch) {
+      return NextResponse.json({ error: 'Incorrect password. Please check your credentials and try again.' }, { status: 401 });
     }
 
     // Update lastLogin
@@ -49,7 +48,7 @@ export async function POST(req: Request) {
       id: user._id ? String(user._id) : 'usr_' + Math.random().toString(36).substring(2, 9),
       email: user.email,
       name: user.fullName || 'Learner',
-      role: user.role || (isAdminEmail ? 'admin' : 'student'),
+      role: user.role || 'student',
     };
 
     const response = NextResponse.json({
