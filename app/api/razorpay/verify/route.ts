@@ -8,6 +8,8 @@ import { Payment } from '@/models/Payment';
 import { Notification } from '@/models/Notification';
 import { requireAuth } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const { user, errorResponse } = await requireAuth(req);
