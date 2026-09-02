@@ -18,13 +18,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // Dynamically load Razorpay to prevent build-time static evaluation errors
+    // Dynamically load Razorpay with safe fallback to prevent any build-time constructor error
     const RazorpayModule = await import('razorpay');
-    const Razorpay = RazorpayModule.default || RazorpayModule;
+    const RazorpayClass = RazorpayModule.default || RazorpayModule;
 
-    const razorpay = new Razorpay({
-      key_id: keyId,
-      key_secret: keySecret,
+    const razorpay = new RazorpayClass({
+      key_id: keyId || 'dummy_key_for_build',
+      key_secret: keySecret || 'dummy_secret_for_build',
     });
 
     const { user, errorResponse } = await requireAuth(req);
