@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import Razorpay from 'razorpay';
 import { connectToDatabase } from '@/lib/mongodb';
 import { Course } from '@/models/Course';
 import { Coupon } from '@/models/Coupon';
@@ -18,6 +17,10 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
+
+    // Dynamically load Razorpay to prevent build-time static evaluation errors
+    const RazorpayModule = await import('razorpay');
+    const Razorpay = RazorpayModule.default || RazorpayModule;
 
     const razorpay = new Razorpay({
       key_id: keyId,
