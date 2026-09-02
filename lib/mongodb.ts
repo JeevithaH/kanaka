@@ -10,34 +10,13 @@ function getMemoryCollection(name: string): any[] {
   return memoryStore[name];
 }
 
-let isMongooseConnected = false;
-let useMemoryFallback = false;
-
-function convertSrvToDirectUri(srvUri: string): string {
-  if (!srvUri) return '';
-  const cleanUri = srvUri.trim().replace(/wmode=/g, 'w=');
-
-  if (!cleanUri.startsWith('mongodb+srv://')) return cleanUri;
-
-  const match = cleanUri.match(/^mongodb\+srv:\/\/([^:]+):([^@]+)@([^/]+)\/([^?]+)(\?.*)?$/);
-  if (!match) return cleanUri;
-
-  const [, user, pass, host, db, query = ''] = match;
-  const clusterName = host.split('.')[0]; 
-  const domain = host.split('.').slice(1).join('.'); 
-
-  const shard0 = `${clusterName}-shard-00-00.${domain}:27017`;
-  const shard1 = `${clusterName}-shard-00-01.${domain}:27017`;
-  const shard2 = `${clusterName}-shard-00-02.${domain}:27017`;
-
-  const queryParams = query ? query.replace('?', '&') : '';
-
-  return `mongodb://${user}:${pass}@${shard0},${shard1},${shard2}/${db}?ssl=true&authSource=admin${queryParams}`;
-}
-
 function getMongooseModel(collection: string) {
   const modelName = collection.charAt(0).toUpperCase() + collection.slice(1);
   return mongoose.models[modelName] || mongoose.model(modelName, new Schema({}, { strict: false, timestamps: true }), collection);
+}
+
+function isMongoActive(): boolean {
+  return mongoose.connection.readyState === 1;
 }
 
 function matchFilter(item: any, filter: any): boolean {
@@ -97,21 +76,21 @@ export class AtlasModel<T> {
   constructor(public collection: string, private modelClass: any) {}
 
   find(filter: any = {}) {
-    if (isMongooseConnected) {
+    if (isMongoActive()) {
       return getMongooseModel(this.collection).find(filter) as any;
     }
     return new MemoryQuery<any>(this.collection, filter, false, this.modelClass);
   }
 
   findOne(filter: any = {}) {
-    if (isMongooseConnected) {
+    if (isMongoActive()) {
       return getMongooseModel(this.collection).findOne(filter) as any;
     }
     return new MemoryQuery<any>(this.collection, filter, true, this.modelClass);
   }
 
   async create(doc: any) {
-    if (isMongooseConnected) {
+    if (isMongoActive()) {
       return getMongooseModel(this.collection).create(doc) as any;
     }
     const store = getMemoryCollection(this.collection);
@@ -133,7 +112,7 @@ export class AtlasModel<T> {
   }
 
   async updateOne(filter: any, update: any, options?: any) {
-    if (isMongooseConnected) {
+    if (isMongoActive()) {
       return getMongooseModel(this.collection).updateOne(filter, update, options) as any;
     }
     const store = getMemoryCollection(this.collection);
@@ -149,7 +128,7 @@ export class AtlasModel<T> {
   }
 
   async updateMany(filter: any, update: any, options?: any) {
-    if (isMongooseConnected) {
+    if (isMongoActive()) {
       return getMongooseModel(this.collection).updateMany(filter, update, options) as any;
     }
     const store = getMemoryCollection(this.collection);
@@ -165,7 +144,7 @@ export class AtlasModel<T> {
   }
 
   async findOneAndUpdate(filter: any, update: any, options?: any) {
-    if (isMongooseConnected) {
+    if (isMongoActive()) {
       return getMongooseModel(this.collection).findOneAndUpdate(filter, update, { new: true, ...options }) as any;
     }
     await this.updateOne(filter, update, options);
@@ -173,7 +152,7 @@ export class AtlasModel<T> {
   }
 
   async deleteOne(filter: any) {
-    if (isMongooseConnected) {
+    if (isMongoActive()) {
       return getMongooseModel(this.collection).deleteOne(filter) as any;
     }
     const store = getMemoryCollection(this.collection);
@@ -185,7 +164,7 @@ export class AtlasModel<T> {
   }
 
   async deleteMany(filter: any) {
-    if (isMongooseConnected) {
+    if (isMongoActive()) {
       return getMongooseModel(this.collection).deleteMany(filter) as any;
     }
     const store = getMemoryCollection(this.collection);
@@ -195,7 +174,7 @@ export class AtlasModel<T> {
   }
 
   async countDocuments(filter: any = {}) {
-    if (isMongooseConnected) {
+    if (isMongoActive()) {
       return getMongooseModel(this.collection).countDocuments(filter) as any;
     }
     const store = getMemoryCollection(this.collection);
@@ -203,21 +182,21 @@ export class AtlasModel<T> {
   }
 
   findById(id: string) {
-    if (isMongooseConnected) {
+    if (isMongoActive()) {
       return getMongooseModel(this.collection).findById(id) as any;
     }
     return this.findOne({ _id: id });
   }
 
   async findByIdAndUpdate(id: string, update: any, options?: any) {
-    if (isMongooseConnected) {
+    if (isMongoActive()) {
       return getMongooseModel(this.collection).findByIdAndUpdate(id, update, { new: true, ...options }) as any;
     }
     return this.findOneAndUpdate({ _id: id }, update, options);
   }
 
   async bulkWrite(operations: any[]) {
-    if (isMongooseConnected) {
+    if (isMongoActive()) {
       return getMongooseModel(this.collection).bulkWrite(operations) as any;
     }
     const results = [];
@@ -245,7 +224,7 @@ export function createModel<T>(collection: string) {
     }
 
     async save() {
-      if (isMongooseConnected) {
+      if (isMongoActive()) {
         const model = getMongooseModel(collection);
         const doc = new model(this);
         const saved = await doc.save();
@@ -280,32 +259,22 @@ export function createModel<T>(collection: string) {
 }
 
 export async function connectToDatabase() {
-  if (isMongooseConnected) return true;
+  if (mongoose.connection.readyState === 1) return true;
 
   const defaultUri = 'mongodb+srv://skyrellac:skyrellac123@cluster0.mongodb.net/skyrellac?retryWrites=true&w=majority';
   const rawUri = process.env.MONGODB_URI || defaultUri;
+  const cleanUri = rawUri.replace(/wmode=/g, 'w=').trim();
 
-  // Try raw URI first
   try {
-    const cleanUri = rawUri.replace(/wmode=/g, 'w=');
-    await mongoose.connect(cleanUri, { serverSelectionTimeoutMS: 4000 });
-    isMongooseConnected = true;
-    useMemoryFallback = false;
-    console.log('Connected to MongoDB Atlas via raw URI!');
+    console.log('Connecting Mongoose to MongoDB Atlas...');
+    await mongoose.connect(cleanUri, {
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 5000,
+    });
+    console.log('Successfully connected to MongoDB Atlas!');
     return true;
-  } catch (err1: any) {
-    // Try converted direct URI
-    try {
-      const directUri = convertSrvToDirectUri(rawUri);
-      await mongoose.connect(directUri, { serverSelectionTimeoutMS: 4000 });
-      isMongooseConnected = true;
-      useMemoryFallback = false;
-      console.log('Connected to MongoDB Atlas via direct URI!');
-      return true;
-    } catch (err2: any) {
-      console.warn('MongoDB connection failed:', err2.message);
-      useMemoryFallback = true;
-      return true;
-    }
+  } catch (err: any) {
+    console.warn('Mongoose connection failed:', err.message);
+    return false;
   }
 }
