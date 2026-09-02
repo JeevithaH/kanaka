@@ -6,9 +6,13 @@ compatibility_flags = ["nodejs_compat"]
 [assets]
 directory = ".open-next/assets"
 
+[[d1_databases]]
+binding = "DB"
+database_name = "skyrellac-db"
+database_id = "c18dff4e-3103-4f1e-b27a-9c224c530c04"
+
 [vars]
 NEXT_PUBLIC_APP_URL = "https://skyrellac-devs.preetham171977.workers.dev"
 RAZORPAY_KEY_ID = "rzp_live_TWpB2OW5IF4Jcn"
 RAZORPAY_KEY_SECRET = "oQsNrwwQjS6nXIzN4mdhzN3o"
 NEXT_PUBLIC_RAZORPAY_KEY_ID = "rzp_live_TWpB2OW5IF4Jcn"
-MONGODB_URI = "mongodb+srv://kanakaambara65_db_user:kiXbnPqWN1rEoc1u@cluster0.afjssmq.mongodb.net/skyrellac?retryWrites=true&w=majority"

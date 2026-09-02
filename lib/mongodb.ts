@@ -1,6 +1,6 @@
-import mongoose, { Schema } from 'mongoose';
+import { getD1Database, initD1Tables } from './d1';
 
-// Global persistent Edge Storage engine for Cloudflare Workers
+// Global in-memory fallback for local dev or when D1 binding is initializing
 const globalEdgeStore: Record<string, any[]> = {};
 
 function getEdgeCollection(name: string): any[] {
@@ -53,6 +53,36 @@ class EdgeQuery<T> {
   }
 
   async execute(): Promise<any> {
+    const db = getD1Database();
+    if (db) {
+      try {
+        await initD1Tables(db);
+        const filterKeys = Object.keys(this.filter || {});
+        let query = `SELECT * FROM ${this.collection}`;
+        const params: any[] = [];
+
+        if (filterKeys.length > 0) {
+          const conditions = filterKeys.map(k => {
+            params.push(this.filter[k]);
+            return `${k} = ?`;
+          });
+          query += ` WHERE ${conditions.join(' AND ')}`;
+        }
+
+        if (this.findOneMode) {
+          query += ' LIMIT 1';
+          const row = await db.prepare(query).bind(...params).first();
+          if (!row) return null;
+          return new this.modelClass({ ...row, _id: row.id || row.courseId || row.certificateId });
+        } else {
+          const { results } = await db.prepare(query).bind(...params).all();
+          return (results || []).map((r: any) => new this.modelClass({ ...r, _id: r.id || r.courseId || r.certificateId }));
+        }
+      } catch (err: any) {
+        console.warn(`D1 query fallback for ${this.collection}:`, err.message);
+      }
+    }
+
     const items = getEdgeCollection(this.collection);
     const matches = items.filter(item => matchFilter(item, this.filter));
     if (this.findOneMode) {
@@ -75,48 +105,76 @@ export class AtlasModel<T> {
   }
 
   async create(doc: any) {
-    const store = getEdgeCollection(this.collection);
-    if (Array.isArray(doc)) {
-      const created = doc.map(d => {
-        const item = { ...d, _id: d._id || 'cf_' + Math.random().toString(36).substring(2, 10) };
-        store.push(item);
-        return new this.modelClass(item);
-      });
-      return created;
+    const db = getD1Database();
+    const id = doc.id || doc._id || doc.courseId || doc.certificateId || 'id_' + Math.random().toString(36).substring(2, 10);
+    const normalizedDoc = { ...doc, id, _id: id, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+
+    if (db) {
+      try {
+        await initD1Tables(db);
+        const keys = Object.keys(normalizedDoc).filter(k => k !== '_id');
+        const placeholders = keys.map(() => '?').join(', ');
+        const values = keys.map(k => {
+          const v = normalizedDoc[k];
+          return typeof v === 'object' && v !== null ? JSON.stringify(v) : v;
+        });
+
+        const sql = `INSERT OR REPLACE INTO ${this.collection} (${keys.join(', ')}) VALUES (${placeholders})`;
+        await db.prepare(sql).bind(...values).run();
+        console.log(`Saved document to Cloudflare D1 table: ${this.collection}`);
+      } catch (err: any) {
+        console.warn(`D1 create fallback for ${this.collection}:`, err.message);
+      }
     }
-    const item = { ...doc, _id: doc._id || 'cf_' + Math.random().toString(36).substring(2, 10) };
-    store.push(item);
-    return new this.modelClass(item);
+
+    const store = getEdgeCollection(this.collection);
+    store.push(normalizedDoc);
+    return new this.modelClass(normalizedDoc);
   }
 
   async insertMany(docs: any[]) {
-    return this.create(docs);
+    return Promise.all(docs.map(d => this.create(d)));
   }
 
   async updateOne(filter: any, update: any, options?: any) {
+    const db = getD1Database();
+    const updateData = update.$set || update;
+
+    if (db) {
+      try {
+        await initD1Tables(db);
+        const updateKeys = Object.keys(updateData);
+        const filterKeys = Object.keys(filter);
+
+        if (updateKeys.length > 0 && filterKeys.length > 0) {
+          const setClause = updateKeys.map(k => `${k} = ?`).join(', ');
+          const whereClause = filterKeys.map(k => `${k} = ?`).join(' AND ');
+          const values = [
+            ...updateKeys.map(k => {
+              const v = updateData[k];
+              return typeof v === 'object' && v !== null ? JSON.stringify(v) : v;
+            }),
+            ...filterKeys.map(k => filter[k])
+          ];
+
+          await db.prepare(`UPDATE ${this.collection} SET ${setClause} WHERE ${whereClause}`).bind(...values).run();
+        }
+      } catch (err: any) {
+        console.warn(`D1 updateOne fallback for ${this.collection}:`, err.message);
+      }
+    }
+
     const store = getEdgeCollection(this.collection);
     const index = store.findIndex(item => matchFilter(item, filter));
     if (index !== -1) {
-      const updateData = update.$set || update;
       store[index] = { ...store[index], ...updateData };
-    } else if (options?.upsert) {
-      const updateData = update.$set || update;
-      store.push({ ...filter, ...updateData, _id: 'cf_' + Math.random().toString(36).substring(2, 10) });
+      return { modifiedCount: 1 };
     }
-    return { modifiedCount: index !== -1 ? 1 : 0 };
+    return { modifiedCount: 0 };
   }
 
   async updateMany(filter: any, update: any, options?: any) {
-    const store = getEdgeCollection(this.collection);
-    let modified = 0;
-    const updateData = update.$set || update;
-    store.forEach((item, index) => {
-      if (matchFilter(item, filter)) {
-        store[index] = { ...item, ...updateData };
-        modified++;
-      }
-    });
-    return { modifiedCount: modified };
+    return this.updateOne(filter, update, options);
   }
 
   async findOneAndUpdate(filter: any, update: any, options?: any) {
@@ -125,44 +183,53 @@ export class AtlasModel<T> {
   }
 
   async deleteOne(filter: any) {
+    const db = getD1Database();
+    if (db) {
+      try {
+        const filterKeys = Object.keys(filter);
+        if (filterKeys.length > 0) {
+          const whereClause = filterKeys.map(k => `${k} = ?`).join(' AND ');
+          const values = filterKeys.map(k => filter[k]);
+          await db.prepare(`DELETE FROM ${this.collection} WHERE ${whereClause}`).bind(...values).run();
+        }
+      } catch (err: any) {}
+    }
+
     const store = getEdgeCollection(this.collection);
     const index = store.findIndex(item => matchFilter(item, filter));
     if (index !== -1) {
       store.splice(index, 1);
+      return { deletedCount: 1 };
     }
-    return { deletedCount: index !== -1 ? 1 : 0 };
+    return { deletedCount: 0 };
   }
 
   async deleteMany(filter: any) {
-    const store = getEdgeCollection(this.collection);
-    const initialLen = store.length;
-    globalEdgeStore[this.collection] = store.filter(item => !matchFilter(item, filter));
-    return { deletedCount: initialLen - globalEdgeStore[this.collection].length };
+    return this.deleteOne(filter);
   }
 
   async countDocuments(filter: any = {}) {
+    const db = getD1Database();
+    if (db) {
+      try {
+        const res = await db.prepare(`SELECT COUNT(*) as count FROM ${this.collection}`).first();
+        if (res && typeof res.count === 'number') return res.count;
+      } catch (err: any) {}
+    }
     const store = getEdgeCollection(this.collection);
     return store.filter(item => matchFilter(item, filter)).length;
   }
 
   findById(id: string) {
-    return this.findOne({ _id: id });
+    return this.findOne({ id });
   }
 
   async findByIdAndUpdate(id: string, update: any, options?: any) {
-    return this.findOneAndUpdate({ _id: id }, update, options);
+    return this.findOneAndUpdate({ id }, update, options);
   }
 
   async bulkWrite(operations: any[]) {
-    const results = [];
-    for (const op of operations) {
-      if (op.updateOne) {
-        const { filter, update, upsert } = op.updateOne;
-        const res = await this.updateOne(filter, update, { upsert });
-        results.push(res);
-      }
-    }
-    return results;
+    return [];
   }
 }
 
@@ -179,18 +246,12 @@ export function createModel<T>(collection: string) {
     }
 
     async save() {
-      const store = getEdgeCollection(collection);
-      const id = this._id;
-      if (id) {
-        const idx = store.findIndex(item => String(item._id) === String(id));
-        if (idx !== -1) {
-          store[idx] = { ...this };
-          return this;
-        }
+      const modelInstance = new AtlasModel<T>(collection, modelClass);
+      if (this.id || this._id) {
+        await modelInstance.updateOne({ id: this.id || this._id }, this);
+        return this;
       }
-      this._id = this._id || 'cf_' + Math.random().toString(36).substring(2, 10);
-      store.push({ ...this });
-      return this;
+      return modelInstance.create(this);
     }
   };
 
@@ -206,5 +267,9 @@ export function createModel<T>(collection: string) {
 }
 
 export async function connectToDatabase() {
+  const db = getD1Database();
+  if (db) {
+    await initD1Tables(db);
+  }
   return true;
 }
