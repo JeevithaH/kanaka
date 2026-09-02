@@ -21,12 +21,12 @@ export function CourseCheckoutModal({
   onPaymentSuccess,
 }: CourseCheckoutModalProps) {
   const { user } = useAuth();
-  const [couponCode, setCouponCode] = useState('SKY90');
-  const [appliedDiscountPct, setAppliedDiscountPct] = useState<number>(90);
-  const [appliedDiscountAmount, setAppliedDiscountAmount] = useState<number>(Math.round(originalPrice * 0.9));
-  const [appliedCouponName, setAppliedCouponName] = useState<string>('SKY90');
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedDiscountPct, setAppliedDiscountPct] = useState<number>(0);
+  const [appliedDiscountAmount, setAppliedDiscountAmount] = useState<number>(0);
+  const [appliedCouponName, setAppliedCouponName] = useState<string>('');
   const [couponError, setCouponError] = useState<string>('');
-  const [couponSuccess, setCouponSuccess] = useState<string>('Special launch offer SKY90 applied (90% OFF)!');
+  const [couponSuccess, setCouponSuccess] = useState<string>('');
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
   const [isProcessing, setIsProcessing] = useState(false);

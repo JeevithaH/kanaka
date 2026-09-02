@@ -16,11 +16,13 @@ import {
   ArrowRight,
   Send,
   Search,
-  ShieldCheck,
-  TrendingUp,
+  Sparkles,
   Calendar,
   Layers,
   ChevronRight,
+  Check,
+  Target,
+  GraduationCap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
@@ -83,18 +85,22 @@ function StudentDashboardContent() {
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [activeTab, setActiveTab] = useState<'all' | 'courses' | 'tasks' | 'internships'>('all');
+  // Coursera tabs: 'in-progress' | 'completed' | 'tasks' | 'internships'
+  const [activeTab, setActiveTab] = useState<'in-progress' | 'completed' | 'tasks' | 'internships'>('in-progress');
 
   useEffect(() => {
-    if (tabQuery === 'courses' || tabQuery === 'tasks' || tabQuery === 'internships') {
-      setActiveTab(tabQuery);
+    if (tabQuery === 'tasks') {
+      setActiveTab('tasks');
+    } else if (tabQuery === 'internships') {
+      setActiveTab('internships');
+    } else if (tabQuery === 'completed') {
+      setActiveTab('completed');
     } else {
-      setActiveTab('all');
+      setActiveTab('in-progress');
     }
   }, [tabQuery]);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
 
   const [selectedTaskForSubmission, setSelectedTaskForSubmission] = useState<TaskData | null>(null);
   const [submissionText, setSubmissionText] = useState('');
@@ -160,54 +166,122 @@ function StudentDashboardContent() {
 
   const handlePaymentSuccess = () => fetchDashboardData();
 
-  const totalCompletedLessons = courseEnrollments.reduce((acc, c) => acc + c.completedLessonsCount, 0);
-  const totalLessonsAllCourses = courseEnrollments.reduce((acc, c) => acc + c.totalLessons, 0);
-  const overallCourseProgress = totalLessonsAllCourses > 0 ? Math.round((totalCompletedLessons / totalLessonsAllCourses) * 100) : 0;
+  // In-progress vs completed courses
+  const inProgressCourses = useMemo(() => {
+    return courseEnrollments.filter((c) => (c.progressPercentage || 0) < 100);
+  }, [courseEnrollments]);
+
+  const completedCourses = useMemo(() => {
+    return courseEnrollments.filter((c) => (c.progressPercentage || 0) >= 100);
+  }, [courseEnrollments]);
+
+  const displayedCourses = activeTab === 'completed' ? completedCourses : inProgressCourses;
 
   const filteredCourses = useMemo(() => {
-    return courseEnrollments.filter((c) =>
-      c.courseTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.category.toLowerCase().includes(searchQuery.toLowerCase())
+    return displayedCourses.filter(
+      (c) =>
+        c.courseTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.category.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [courseEnrollments, searchQuery]);
+  }, [displayedCourses, searchQuery]);
 
-  const userInitials = user?.name ? user.name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase() : 'ST';
-  const weekDays = [
-    { day: 'Sun', height: 'h-12', active: false },
-    { day: 'Mon', height: 'h-20', active: true },
-    { day: 'Tue', height: 'h-28', active: true },
-    { day: 'Wed', height: 'h-16', active: true },
-    { day: 'Thu', height: 'h-32', active: true },
-    { day: 'Fri', height: 'h-24', active: true },
-    { day: 'Sat', height: 'h-14', active: false },
+  const totalCompletedLessons = courseEnrollments.reduce((acc, c) => acc + (c.completedLessonsCount || 0), 0);
+  const totalLessonsAllCourses = courseEnrollments.reduce((acc, c) => acc + (c.totalLessons || 0), 0);
+  const overallCourseProgress = totalLessonsAllCourses > 0 ? Math.round((totalCompletedLessons / totalLessonsAllCourses) * 100) : 0;
+
+  // Coursera Weekly habit days
+  const daysOfWeek = [
+    { day: 'M', full: 'Mon', completed: true },
+    { day: 'T', full: 'Tue', completed: true },
+    { day: 'W', full: 'Wed', completed: true },
+    { day: 'T', full: 'Thu', completed: true },
+    { day: 'F', full: 'Fri', completed: false },
+    { day: 'S', full: 'Sat', completed: false },
+    { day: 'S', full: 'Sun', completed: false },
   ];
 
-  const currentDateFormatted = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-
   return (
-    <div className="space-y-6 font-sans">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#efebe7] border border-[#ded7d0] p-4 rounded-2xl">
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-[#8a7f76] absolute left-3.5 top-1/2 -translate-y-1/2" />
+    <div className="space-y-8 font-sans max-w-[1400px] mx-auto">
+      {/* ── COURSERA HEADER / SEARCH BAR ────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 px-6 py-4 rounded-xl shadow-xs">
+        <div className="relative flex-1 max-w-lg">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search your courses, topics, or modules..."
-            className="w-full bg-white border border-[#ded7d0] pl-10 pr-4 py-2 text-xs rounded-xl focus:outline-none focus:border-[#80664f] text-[#261e18] placeholder:text-[#8a7f76]"
+            placeholder="Search your courses, assignments, or skills..."
+            className="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2 text-xs rounded-lg focus:outline-none focus:border-[#0056D2] focus:bg-white text-slate-900 placeholder:text-slate-400 transition-colors"
           />
         </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+        <div className="flex items-center gap-3">
+          <Link href="/courses">
+            <button className="bg-[#0056D2] hover:bg-[#0041B2] text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs">
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Explore Catalog</span>
+            </button>
+          </Link>
+        </div>
+      </div>
+
+      {/* ── COURSERA WELCOME BANNER ─────────────────────────────── */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 lg:p-8 shadow-xs relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          <div className="space-y-2 max-w-2xl">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-[#0056D2] bg-blue-50 px-2.5 py-0.5 rounded uppercase tracking-wide">
+                My Learning
+              </span>
+              <span className="text-xs text-slate-400">•</span>
+              <span className="text-xs text-slate-500 font-medium">Skyrellac Learner Portal</span>
+            </div>
+            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-slate-900 leading-tight">
+              Welcome back, {user?.name || 'Learner'} 👋
+            </h1>
+            <p className="text-slate-600 text-sm leading-relaxed">
+              Pick up right where you left off, stay on schedule, and earn verified industry credentials.
+            </p>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="flex items-center gap-6 border-t lg:border-t-0 lg:border-l border-slate-200 pt-4 lg:pt-0 lg:pl-8 shrink-0">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-slate-900">{courseEnrollments.length}</p>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">Enrolled</p>
+            </div>
+            <div className="w-px h-8 bg-slate-200" />
+            <div className="text-center">
+              <p className="text-2xl font-bold text-[#0056D2]">{completedCourses.length}</p>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">Completed</p>
+            </div>
+            <div className="w-px h-8 bg-slate-200" />
+            <div className="text-center">
+              <p className="text-2xl font-bold text-emerald-600">
+                {courseEnrollments.filter((c) => c.certificateStatus?.issued).length}
+              </p>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">Certificates</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── COURSERA NAVIGATION TABS ────────────────────────────── */}
+      <div className="border-b border-slate-200">
+        <div className="flex items-center gap-8 overflow-x-auto">
           {[
-            { id: 'all', label: 'Overview' },
-            { id: 'courses', label: `Courses (${courseEnrollments.length})` },
-            { id: 'tasks', label: `Tasks (${tasks.length})` },
+            { id: 'in-progress', label: `In Progress (${inProgressCourses.length})` },
+            { id: 'completed', label: `Completed (${completedCourses.length})` },
+            { id: 'tasks', label: `Assignments (${tasks.length})` },
             { id: 'internships', label: `Internships (${internshipEnrollments.length})` },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-[#80664f] text-white shadow-sm' : 'bg-white text-[#5f554d] hover:bg-[#e4ded8] border border-[#ded7d0]'}`}
+              className={`pb-3 text-sm font-semibold transition-colors relative whitespace-nowrap cursor-pointer ${
+                activeTab === tab.id
+                  ? 'text-[#0056D2] border-b-2 border-[#0056D2]'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
             >
               {tab.label}
             </button>
@@ -215,124 +289,55 @@ function StudentDashboardContent() {
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#261e18] via-[#3d2f24] to-[#5f4938] text-white p-6 lg:p-8 shadow-md border border-[#4a392c]">
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="max-w-2xl space-y-2.5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#80664f]/40 border border-[#a38367]/30 text-[11px] font-semibold text-[#efebe7]">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#d9c8bb]" />
-              <span>OFFICIAL STUDENT OPERATIONS CENTER</span>
-            </div>
-            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-white leading-snug">
-              Welcome back, {user?.name || 'Learner'}! Build skills the world needs now.
-            </h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            <Link href="/courses">
-              <button className="bg-white text-[#261e18] hover:bg-[#efebe7] px-5 py-2.5 text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2">
-                <span>Browse Courses</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {(activeTab === 'all' || activeTab === 'courses') && (
-          <div className="lg:col-span-3 space-y-6">
-            <div className="bg-white border border-[#ded7d0] rounded-3xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xs font-bold text-[#8a7f76] uppercase tracking-wider">Learning Time</h3>
-                  <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-2xl font-black text-[#261e18]">18</span>
-                    <span className="text-xs text-[#8a7f76]">hours spent</span>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-[#f8f6f4] p-4 rounded-2xl border border-[#ded7d0] space-y-2">
-                <div className="flex items-end justify-between gap-1 h-32 pt-2 px-1">
-                  {weekDays.map((item, i) => (
-                    <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
-                      <div className={`w-full max-w-[20px] rounded-lg ${item.height} ${item.active ? 'bg-[#80664f]' : 'bg-[#ded7d0]'}`} />
-                      <span className="text-[10px] font-semibold text-[#8a7f76]">{item.day}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className={`${activeTab === 'tasks' ? 'lg:col-span-8' : 'lg:col-span-6'} space-y-6`}>
-          {/* Activity Progress Header */}
-          <div className="bg-white border border-[#ded7d0] rounded-3xl p-6 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h2 className="text-sm font-bold text-[#261e18] flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-[#80664f]" />
-                <span>Overall Learning Progress</span>
-              </h2>
-              <div className="flex items-center gap-1 bg-[#efebe7] p-1 rounded-xl border border-[#ded7d0] self-start">
-                {(['all', 'beginner', 'intermediate', 'advanced'] as const).map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => setDifficultyFilter(d)}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${
-                      difficultyFilter === d ? 'bg-[#80664f] text-white shadow-sm' : 'text-[#8a7f76] hover:text-[#261e18]'
-                    }`}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-[#f8f6f4] p-5 rounded-2xl border border-[#ded7d0] space-y-3">
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-3xl font-black text-[#261e18]">{overallCourseProgress}%</span>
-                  <span className="text-xs text-[#8a7f76] ml-2 font-medium">Activity Completed</span>
-                </div>
-                <span className="text-xs font-bold text-[#80664f] bg-[#efebe7] px-2.5 py-1 rounded-lg border border-[#ded7d0]">
-                  {totalCompletedLessons} / {totalLessonsAllCourses} Lessons
-                </span>
-              </div>
-              <div className="w-full bg-[#ded7d0] h-2.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-[#80664f] h-full rounded-full transition-all duration-500"
-                  style={{ width: `${overallCourseProgress}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* MY COURSES SECTION */}
-          {(activeTab === 'all' || activeTab === 'courses') && (
+      {/* ── MAIN CONTENT GRID ───────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left / Center Column: Course Feed or Assignments */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* TAB: IN PROGRESS or COMPLETED */}
+          {(activeTab === 'in-progress' || activeTab === 'completed') && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-[#261e18] flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-[#80664f]" />
-                  <span>My Courses</span>
+                <h2 className="text-base font-bold text-slate-900">
+                  {activeTab === 'in-progress' ? 'Courses in Progress' : 'Completed Courses'}
                 </h2>
-                <Link href="/courses" className="text-xs font-bold text-[#80664f] hover:underline flex items-center gap-1">
-                  <span>Catalog</span>
+                <Link
+                  href="/courses"
+                  className="text-xs font-semibold text-[#0056D2] hover:underline flex items-center gap-1"
+                >
+                  <span>Browse all courses</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
 
               {isLoading ? (
-                <div className="bg-white border border-[#ded7d0] p-8 text-center text-xs text-[#8a7f76] rounded-3xl">
+                <div className="bg-white border border-slate-200 p-12 text-center text-xs text-slate-500 rounded-xl">
                   Loading courses...
                 </div>
               ) : filteredCourses.length === 0 ? (
-                <div className="bg-white border border-[#ded7d0] p-8 text-center space-y-3 rounded-3xl">
-                  <p className="text-xs text-[#5f554d]">No enrolled courses found.</p>
+                <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center space-y-4 shadow-xs">
+                  <div className="w-12 h-12 rounded-full bg-blue-50 text-[#0056D2] flex items-center justify-center mx-auto">
+                    <BookOpen className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-slate-900">
+                      {activeTab === 'in-progress'
+                        ? 'No courses in progress'
+                        : 'No completed courses yet'}
+                    </h3>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                      {activeTab === 'in-progress'
+                        ? 'Explore top-rated technology courses on Skyrellac and start your learning journey today.'
+                        : 'Complete all modules and pass the final exam in any course to see your achievements here.'}
+                    </p>
+                  </div>
                   <Link href="/courses">
-                    <Button variant="glow" size="sm">Explore & Enroll</Button>
+                    <button className="bg-[#0056D2] hover:bg-[#0041B2] text-white text-xs font-bold px-5 py-2.5 rounded-lg transition-colors shadow-xs">
+                      Explore Courses Catalog
+                    </button>
                   </Link>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   {filteredCourses.map((item) => {
                     const isPaid = item.paymentStatus === 'paid';
                     const fallbackImg = item.category.toLowerCase().includes('ai')
@@ -344,60 +349,67 @@ function StudentDashboardContent() {
                       : '/images/web.jpg';
 
                     const imgSrc = item.image || fallbackImg;
+                    const progress = item.progressPercentage || 0;
 
                     return (
                       <div
                         key={item._id}
-                        className="bg-white border border-[#ded7d0] rounded-2xl overflow-hidden shadow-sm hover:border-[#80664f] transition-all flex flex-col justify-between"
+                        className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col sm:flex-row items-stretch"
                       >
-                        <div className="relative w-full h-32 bg-[#efebe7]">
-                          <Image src={imgSrc} alt={item.courseTitle} fill className="object-cover" />
-                          <div className="absolute top-2 left-2">
-                            <span className="bg-[#261e18]/80 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded uppercase">
+                        {/* Course Thumbnail */}
+                        <div className="relative w-full sm:w-56 h-40 sm:h-auto shrink-0 bg-slate-100">
+                          <Image
+                            src={imgSrc}
+                            alt={item.courseTitle}
+                            fill
+                            className="object-cover"
+                          />
+                          <div className="absolute top-2.5 left-2.5">
+                            <span className="bg-slate-900/80 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded">
                               {item.category}
                             </span>
                           </div>
-                          <div className="absolute top-2 right-2">
-                            {isPaid ? (
-                              <span className="bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-sm">
-                                Unlocked ✓
-                              </span>
-                            ) : (
-                              <span className="bg-[#80664f] text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-sm">
-                                ₹199
-                              </span>
-                            )}
-                          </div>
                         </div>
 
-                        <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                          <div>
-                            <h3 className="text-xs font-bold text-[#261e18] line-clamp-2 leading-snug">
+                        {/* Course Body (Coursera Layout) */}
+                        <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                          <div className="space-y-1.5">
+                            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                              Skyrellac Professional Program
+                            </span>
+                            <h3 className="text-base font-bold text-slate-900 leading-snug hover:text-[#0056D2] transition-colors">
                               {item.courseTitle}
                             </h3>
-                            <p className="text-[10px] text-[#8a7f76] mt-1">
-                              {item.completedLessonsCount} / {item.totalLessons} completed
+                            <p className="text-xs text-slate-500">
+                              {item.completedLessonsCount || 0} of {item.totalLessons || 10} modules completed
                             </p>
                           </div>
 
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-[10px] font-semibold text-[#5f554d]">
-                              <span>Progress</span>
-                              <span>{item.progressPercentage}%</span>
+                          {/* Progress Bar */}
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between text-xs font-semibold">
+                              <span className="text-slate-600">Course Progress</span>
+                              <span className="text-[#0056D2]">{progress}%</span>
                             </div>
-                            <div className="w-full bg-[#efebe7] h-1.5 rounded-full overflow-hidden">
+                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                               <div
-                                className="bg-[#80664f] h-full rounded-full"
-                                style={{ width: `${item.progressPercentage}%` }}
+                                className="bg-[#0056D2] h-full rounded-full transition-all duration-500"
+                                style={{ width: `${progress}%` }}
                               />
                             </div>
                           </div>
 
-                          <div className="pt-2">
+                          {/* Action Button */}
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                            <div className="flex items-center gap-1 text-xs text-slate-500">
+                              <Clock className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Self-paced • Lifetime access</span>
+                            </div>
+
                             {isPaid ? (
                               <Link href={`/learn/${item.courseId}/mod1-lesson1`}>
-                                <button className="w-full bg-[#80664f] hover:bg-[#5f4938] text-white text-xs font-bold py-2 rounded-xl transition-colors flex items-center justify-center gap-1.5 shadow-sm">
-                                  <span>Continue</span>
+                                <button className="bg-[#0056D2] hover:bg-[#0041B2] text-white text-xs font-bold px-5 py-2.5 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer">
+                                  <span>{progress > 0 ? 'Resume Course' : 'Go to Course'}</span>
                                   <ArrowRight className="w-3.5 h-3.5" />
                                 </button>
                               </Link>
@@ -410,9 +422,9 @@ function StudentDashboardContent() {
                                     originalPrice: 1999,
                                   })
                                 }
-                                className="w-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold py-2 rounded-xl transition-colors shadow-sm"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors shadow-xs cursor-pointer"
                               >
-                                Unlock (₹199)
+                                Unlock Full Access (₹199)
                               </button>
                             )}
                           </div>
@@ -425,46 +437,126 @@ function StudentDashboardContent() {
             </div>
           )}
 
-          {/* INTERNSHIP ENROLLMENTS */}
-          {(activeTab === 'all' || activeTab === 'internships') && (
+          {/* TAB: TASKS & ASSIGNMENTS */}
+          {activeTab === 'tasks' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-[#261e18] flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-[#80664f]" />
-                  <span>Internship Milestones</span>
-                </h2>
-                <Link href="/internships" className="text-xs font-bold text-[#80664f] hover:underline flex items-center gap-1">
-                  <span>Explore</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
+                <h2 className="text-base font-bold text-slate-900">Upcoming Assignments & Quizzes</h2>
+                <span className="text-xs text-slate-500">{tasks.length} total tasks</span>
+              </div>
+
+              {tasks.length === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center space-y-3 shadow-xs">
+                  <p className="text-xs text-slate-500">No active assignments or quizzes pending.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tasks.map((task) => {
+                    const isSubmitted = task.status === 'submitted';
+                    const isUnderReview = task.status === 'under-review';
+                    const isApproved = task.status === 'approved';
+                    const isRejected = task.status === 'rejected';
+                    const isCompleted = task.status === 'completed';
+
+                    let statusBadge = 'bg-slate-100 text-slate-600 border-slate-200';
+                    let statusText = 'Pending';
+                    if (isSubmitted) {
+                      statusBadge = 'bg-amber-50 text-amber-800 border-amber-200';
+                      statusText = 'Submitted';
+                    } else if (isUnderReview) {
+                      statusBadge = 'bg-blue-50 text-blue-800 border-blue-200';
+                      statusText = 'In Review';
+                    } else if (isApproved || isCompleted) {
+                      statusBadge = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                      statusText = 'Completed ✓';
+                    } else if (isRejected) {
+                      statusBadge = 'bg-rose-50 text-rose-700 border-rose-200';
+                      statusText = 'Needs Revision';
+                    }
+
+                    return (
+                      <div
+                        key={task._id}
+                        className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs space-y-3"
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isCompleted || isSubmitted || isUnderReview || isApproved}
+                            onChange={() => toggleTask(task._id)}
+                            className="mt-1 h-4 w-4 rounded text-[#0056D2] accent-[#0056D2] cursor-pointer"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4
+                              className={`text-xs font-bold ${
+                                isCompleted || isApproved ? 'line-through text-slate-400' : 'text-slate-900'
+                              }`}
+                            >
+                              {task.title}
+                            </h4>
+                            <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500">
+                              <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${statusBadge}`}>
+                                {statusText}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {!isSubmitted && !isUnderReview && !isApproved && !isCompleted && (
+                          <button
+                            onClick={() => setSelectedTaskForSubmission(task)}
+                            className="w-full text-center py-2 text-xs font-semibold text-white bg-[#0056D2] hover:bg-[#0041B2] rounded-lg transition-colors cursor-pointer"
+                          >
+                            Submit Assignment →
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB: INTERNSHIPS */}
+          {activeTab === 'internships' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-slate-900">Enrolled Internship Programs</h2>
+                <Link href="/internships" className="text-xs font-semibold text-[#0056D2] hover:underline">
+                  Browse Internships →
                 </Link>
               </div>
 
               {internshipEnrollments.length === 0 ? (
-                <div className="bg-white border border-[#ded7d0] p-6 text-center space-y-3 rounded-3xl">
-                  <p className="text-xs text-[#5f554d]">No active internship enrollments.</p>
+                <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center space-y-3 shadow-xs">
+                  <p className="text-xs text-slate-500">No active internship enrollments.</p>
                   <Link href="/internships">
-                    <button className="bg-[#80664f] text-white text-xs px-4 py-2 rounded-xl font-bold hover:bg-[#5f4938] transition-colors">
-                      Browse Internships
+                    <button className="bg-[#0056D2] hover:bg-[#0041B2] text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors">
+                      Explore Internships
                     </button>
                   </Link>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {internshipEnrollments.map((item) => (
-                    <div key={item._id} className="bg-white border border-[#ded7d0] p-4 rounded-2xl space-y-2.5 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-[9px] font-bold text-[#80664f] bg-[#efebe7] px-2 py-0.5 rounded border border-[#ded7d0]">
-                            {item.organization}
-                          </span>
-                          <h3 className="text-xs font-bold text-[#261e18] mt-1">{item.title}</h3>
-                        </div>
-                        <Link href={`/internships/${item.internshipId}`}>
-                          <button className="bg-[#efebe7] text-[#261e18] text-xs font-bold px-3 py-1.5 rounded-lg border border-[#ded7d0]">
-                            View
-                          </button>
-                        </Link>
+                    <div
+                      key={item._id}
+                      className="bg-white border border-slate-200 p-5 rounded-xl shadow-xs flex items-center justify-between"
+                    >
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-[#0056D2] bg-blue-50 px-2 py-0.5 rounded">
+                          {item.organization}
+                        </span>
+                        <h3 className="text-sm font-bold text-slate-900">{item.title}</h3>
+                        <p className="text-xs text-slate-500">Verified Professional Experience</p>
                       </div>
+                      <Link href={`/internships/${item.internshipId}`}>
+                        <button className="bg-slate-100 hover:bg-slate-200 text-slate-900 text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
+                          View Program
+                        </button>
+                      </Link>
                     </div>
                   ))}
                 </div>
@@ -473,149 +565,99 @@ function StudentDashboardContent() {
           )}
         </div>
 
-        {/* RIGHT COLUMN: Profile, Tasks Checklist & Alerts */}
-        <div className={`${activeTab === 'tasks' ? 'lg:col-span-4' : 'lg:col-span-3'} space-y-6`}>
-          {/* Profile Card */}
-          <div className="bg-white border border-[#ded7d0] rounded-3xl p-5 shadow-sm space-y-3 text-center">
-            <div className="flex items-center justify-between text-xs font-bold text-[#8a7f76]">
-              <span>My Profile</span>
-              <span className="bg-[#efebe7] text-[#80664f] text-[10px] px-2 py-0.5 rounded border border-[#ded7d0]">
-                Active
-              </span>
-            </div>
-
-            <div className="flex flex-col items-center space-y-2 pt-1">
-              <div className="w-14 h-14 rounded-full bg-[#80664f] text-white flex items-center justify-center text-base font-black shadow-md border-2 border-white">
-                {userInitials}
-              </div>
-              <div>
-                <h3 className="text-xs font-bold text-[#261e18]">{user?.name || 'Preetham H'}</h3>
-                <p className="text-[10px] text-[#8a7f76] font-mono">
-                  ID: {user?.id?.substring(0, 10) || 'ST-6A85A5'}
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-[#f8f6f4] p-2.5 rounded-2xl border border-[#ded7d0] flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-[#80664f]" />
-                <span className="text-[10px] font-semibold text-[#5f554d]">{currentDateFormatted}</span>
-              </div>
-              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                Verified
-              </span>
-            </div>
-          </div>
-
-          {/* Assigned Tasks Widget */}
-          <div className="bg-white border border-[#ded7d0] rounded-3xl p-5 shadow-sm space-y-3">
+        {/* ── RIGHT COLUMN: COURSERA WEEKLY GOAL & STATS ──────────── */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Coursera Weekly Learning Goal Widget */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-[#261e18] flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-[#80664f]" />
-                <span>Assigned Tasks</span>
-              </h3>
-              <span className="text-[10px] font-bold text-[#80664f] bg-[#efebe7] px-2 py-0.5 rounded-full border border-[#ded7d0]">
-                {tasks.length}
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-[#0056D2]" />
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Weekly Learning Habit
+                </h3>
+              </div>
+              <span className="text-[10px] font-bold text-[#0056D2] bg-blue-50 px-2 py-0.5 rounded">
+                4 / 7 Days
               </span>
             </div>
 
-            {tasks.length === 0 ? (
-              <p className="text-xs text-[#8a7f76] py-3 text-center">No assigned tasks.</p>
-            ) : (
-              <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-                {tasks.map((task) => {
-                  const isSubmitted = task.status === 'submitted';
-                  const isUnderReview = task.status === 'under-review';
-                  const isApproved = task.status === 'approved';
-                  const isRejected = task.status === 'rejected';
-                  const isCompleted = task.status === 'completed';
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Learning a little every day helps build momentum toward your career credentials.
+            </p>
 
-                  let statusBadge = 'bg-[#efebe7] text-[#5f554d] border-[#ded7d0]';
-                  let statusText = 'Pending';
-                  if (isSubmitted) {
-                    statusBadge = 'bg-amber-50 text-amber-800 border-amber-200';
-                    statusText = 'Submitted';
-                  } else if (isUnderReview) {
-                    statusBadge = 'bg-amber-100 text-amber-900 border-amber-300';
-                    statusText = 'Reviewing';
-                  } else if (isApproved || isCompleted) {
-                    statusBadge = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                    statusText = 'Approved ✓';
-                  } else if (isRejected) {
-                    statusBadge = 'bg-rose-50 text-rose-700 border-rose-200';
-                    statusText = 'Rejected ⚠️';
-                  }
-
-                  return (
-                    <div key={task._id} className="p-3 bg-[#f8f6f4] rounded-2xl border border-[#ded7d0] space-y-2">
-                      <div className="flex items-start gap-2">
-                        <input
-                          type="checkbox"
-                          checked={isCompleted || isSubmitted || isUnderReview || isApproved}
-                          onChange={() => toggleTask(task._id)}
-                          className="mt-0.5 rounded text-[#80664f] accent-[#80664f] cursor-pointer"
-                        />
-                        <div className="flex-1 space-y-0.5">
-                          <p className={`text-xs font-bold leading-tight ${isCompleted || isApproved ? 'line-through text-[#8a7f76]' : 'text-[#261e18]'}`}>
-                            {task.title}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-[#8a7f76]">
-                              Due: {new Date(task.dueDate).toLocaleDateString()}
-                            </span>
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${statusBadge}`}>
-                              {statusText}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {!isSubmitted && !isUnderReview && !isApproved && !isCompleted ? (
-                        <button
-                          onClick={() => setSelectedTaskForSubmission(task)}
-                          className="w-full text-center py-1.5 text-[11px] font-bold text-white bg-[#80664f] hover:bg-[#5f4938] rounded-xl transition-colors shadow-sm"
-                        >
-                          Submit Task Work →
-                        </button>
-                      ) : isRejected ? (
-                        <button
-                          onClick={() => setSelectedTaskForSubmission(task)}
-                          className="w-full text-center py-1.5 text-[11px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors border border-rose-200"
-                        >
-                          Resubmit Work ⚠️ →
-                        </button>
-                      ) : (
-                        <div className="w-full text-center py-1 text-[10px] font-bold text-[#8a7f76] bg-[#efebe7] rounded-lg border border-[#ded7d0]">
-                          Work Locked (In Review)
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <div className="flex items-center justify-between pt-1">
+              {daysOfWeek.map((d, idx) => (
+                <div key={idx} className="flex flex-col items-center gap-1.5">
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+                      d.completed
+                        ? 'bg-[#0056D2] text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-400'
+                    }`}
+                  >
+                    {d.completed ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : d.day}
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-medium">{d.full}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Notifications & System Alerts */}
-          <div className="bg-white border border-[#ded7d0] rounded-3xl p-5 shadow-sm space-y-3">
-            <h3 className="text-xs font-bold text-[#261e18] flex items-center gap-1.5">
-              <Bell className="w-3.5 h-3.5 text-[#80664f]" />
-              <span>Recent Alerts</span>
-            </h3>
+          {/* Overall Progress Widget */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Overall Progress
+              </h3>
+              <span className="text-xs font-bold text-slate-900">{overallCourseProgress}%</span>
+            </div>
+            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-[#0056D2] h-full rounded-full transition-all duration-500"
+                style={{ width: `${overallCourseProgress}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-slate-500 pt-1">
+              <span>{totalCompletedLessons} lessons finished</span>
+              <span>{totalLessonsAllCourses} total</span>
+            </div>
+          </div>
 
+          {/* Verifiable Credentials Box */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="w-4 h-4 text-emerald-600" />
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Verified Credentials
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Earn an accredited certificate upon passing the final assessment of each course.
+            </p>
+            <Link href="/credentials">
+              <button className="w-full bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 text-xs font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-1 mt-1">
+                <span>View My Certificates</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </Link>
+          </div>
+
+          {/* Notifications / Updates */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-slate-600" />
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Recent Updates
+              </h3>
+            </div>
             {notifications.length === 0 ? (
-              <p className="text-xs text-[#8a7f76] py-2 text-center">No alerts at this moment.</p>
+              <p className="text-xs text-slate-400 py-2 text-center">No new notifications.</p>
             ) : (
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                {notifications.slice(0, 4).map((n) => (
-                  <div key={n._id} className="p-2.5 rounded-xl bg-[#f8f6f4] border border-[#ded7d0] space-y-1">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-[#261e18]">
-                      <span>{n.title}</span>
-                      <span className="text-[9px] text-[#8a7f76]">
-                        {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-[#5f554d] leading-relaxed line-clamp-2">{n.message}</p>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {notifications.slice(0, 3).map((n) => (
+                  <div key={n._id} className="p-2.5 rounded-lg bg-slate-50 border border-slate-100 space-y-0.5">
+                    <p className="text-xs font-semibold text-slate-800">{n.title}</p>
+                    <p className="text-[11px] text-slate-500 leading-snug line-clamp-2">{n.message}</p>
                   </div>
                 ))}
               </div>
@@ -626,39 +668,39 @@ function StudentDashboardContent() {
 
       {/* Task Submission Modal */}
       {selectedTaskForSubmission && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#ded7d0] p-6 rounded-3xl max-w-lg w-full space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center pb-2 border-b border-[#ded7d0]">
-              <h3 className="text-sm font-bold text-[#261e18]">Submit Task Work for Review</h3>
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
+          <div className="bg-white border border-slate-200 p-6 rounded-2xl max-w-lg w-full space-y-4 shadow-xl">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-900">Submit Assignment Work</h3>
               <button
                 onClick={() => setSelectedTaskForSubmission(null)}
-                className="text-[#8a7f76] hover:text-[#261e18] font-bold text-sm"
+                className="text-slate-400 hover:text-slate-600 font-bold text-sm cursor-pointer"
               >
                 ✕
               </button>
             </div>
             <div>
-              <p className="text-xs font-bold text-[#261e18]">{selectedTaskForSubmission.title}</p>
-              <p className="text-[11px] text-[#8a7f76] mt-0.5">
-                Due: {new Date(selectedTaskForSubmission.dueDate).toLocaleDateString()}
+              <p className="text-xs font-bold text-slate-900">{selectedTaskForSubmission.title}</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Due date: {new Date(selectedTaskForSubmission.dueDate).toLocaleDateString()}
               </p>
             </div>
             <form onSubmit={handleTaskSubmit} className="space-y-4">
               <textarea
                 value={submissionText}
                 onChange={(e) => setSubmissionText(e.target.value)}
-                placeholder="Paste your GitHub repository URL, live project link, or written explanation of your solution..."
+                placeholder="Paste your GitHub URL, live project link, or solution notes here..."
                 rows={5}
                 required
-                className="w-full border border-[#ded7d0] rounded-2xl p-3 text-xs focus:outline-none focus:border-[#80664f] text-[#261e18] placeholder:text-[#8a7f76]"
+                className="w-full border border-slate-200 rounded-xl p-3 text-xs focus:outline-none focus:border-[#0056D2] text-slate-900 placeholder:text-slate-400"
               />
               <button
                 type="submit"
                 disabled={isSubmittingTask}
-                className="w-full bg-[#80664f] hover:bg-[#5f4938] text-white text-xs font-bold py-3 rounded-2xl transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                className="w-full bg-[#0056D2] hover:bg-[#0041B2] text-white text-xs font-bold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>{isSubmittingTask ? 'Submitting...' : 'Submit Solution to Mentor'}</span>
+                <span>{isSubmittingTask ? 'Submitting...' : 'Submit to Mentor for Grading'}</span>
               </button>
             </form>
           </div>
@@ -682,7 +724,7 @@ function StudentDashboardContent() {
 
 export default function StudentDashboardPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-xs text-[#8a7f76]">Loading dashboard...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-400">Loading dashboard...</div>}>
       <StudentDashboardContent />
     </Suspense>
   );
