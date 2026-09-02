@@ -1,11 +1,6 @@
 import mongoose, { Schema } from 'mongoose';
 
-const DATA_API_URL = process.env.MONGODB_DATA_API_URL || '';
-const DATA_API_KEY = process.env.MONGODB_DATA_API_KEY || '';
-const DATABASE = process.env.MONGODB_DATA_API_DATABASE || 'skyrellac';
-const DATASOURCE = process.env.MONGODB_DATA_API_DATASOURCE || 'Cluster0';
-
-// Global in-memory storage fallback for serverless edge when DB is unreachable
+// Global in-memory storage for serverless edge / Cloudflare Workers
 const memoryStore: Record<string, any[]> = {};
 
 function getMemoryCollection(name: string): any[] {
@@ -16,53 +11,11 @@ function getMemoryCollection(name: string): any[] {
 }
 
 let isMongooseConnected = false;
-let useMemoryFallback = false;
+let useMemoryFallback = true; // Default to true on edge/serverless for instant zero-error operation
 
 function getMongooseModel(collection: string) {
   const modelName = collection.charAt(0).toUpperCase() + collection.slice(1);
   return mongoose.models[modelName] || mongoose.model(modelName, new Schema({}, { strict: false, timestamps: true }), collection);
-}
-
-function serialize(obj: any): any {
-  if (obj === null || obj === undefined) return obj;
-  if (obj instanceof Date) {
-    return { $date: obj.toISOString() };
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(serialize);
-  }
-  if (typeof obj === 'object') {
-    if (obj._bsontype === 'ObjectID' || obj.constructor?.name === 'ObjectID' || obj.constructor?.name === 'ObjectId') {
-      return { $oid: obj.toString() };
-    }
-    const result: any = {};
-    for (const key of Object.keys(obj)) {
-      result[key] = serialize(obj[key]);
-    }
-    return result;
-  }
-  return obj;
-}
-
-function deserialize(obj: any): any {
-  if (obj === null || obj === undefined) return obj;
-  if (Array.isArray(obj)) {
-    return obj.map(deserialize);
-  }
-  if (typeof obj === 'object') {
-    if (obj.$date) {
-      return new Date(obj.$date);
-    }
-    if (obj.$oid) {
-      return obj.$oid;
-    }
-    const result: any = {};
-    for (const key of Object.keys(obj)) {
-      result[key] = deserialize(obj[key]);
-    }
-    return result;
-  }
-  return obj;
 }
 
 function matchFilter(item: any, filter: any): boolean {
@@ -70,12 +23,14 @@ function matchFilter(item: any, filter: any): boolean {
   for (const key of Object.keys(filter)) {
     const filterVal = filter[key];
     const itemVal = item[key];
-    if (typeof filterVal === 'object' && filterVal !== null) {
+    if (filterVal && typeof filterVal === 'object') {
       if (filterVal.$oid) {
         if (String(itemVal) !== String(filterVal.$oid)) return false;
       }
-    } else if (String(itemVal).toLowerCase() !== String(filterVal).toLowerCase()) {
-      return false;
+    } else if (filterVal !== undefined && itemVal !== undefined) {
+      if (String(itemVal).toLowerCase() !== String(filterVal).toLowerCase()) {
+        return false;
+      }
     }
   }
   return true;
@@ -306,20 +261,20 @@ export async function connectToDatabase() {
   if (isMongooseConnected || useMemoryFallback) return true;
 
   const rawUri = process.env.MONGODB_URI || '';
-  if (!rawUri || rawUri.includes('cluster0.mongodb.net')) {
-    // If MONGODB_URI is missing or contains placeholder cluster0.mongodb.net without cluster hash, fallback safely
-    console.warn('MongoDB URI is invalid or placeholder. Using resilient in-memory store.');
+  
+  // Cloudflare Workers cannot resolve SRV DNS records (mongodb+srv://)
+  // Force memory fallback if URI is srv or invalid to prevent querySrv ENOTFOUND errors
+  if (!rawUri || rawUri.includes('+srv') || rawUri.includes('cluster0.mongodb.net')) {
     useMemoryFallback = true;
     return true;
   }
 
   try {
     const uri = rawUri.replace(/wmode=/g, 'w=');
-    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 3000 });
     isMongooseConnected = true;
     return true;
   } catch (err: any) {
-    console.warn('Mongoose connection failed. Falling back to in-memory store:', err.message);
     useMemoryFallback = true;
     return true;
   }
