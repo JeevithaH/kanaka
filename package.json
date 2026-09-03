@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && opennextjs-cloudflare build --skipNextBuild",
-    "cf:build": "opennextjs-cloudflare build",
+    "postinstall": "node scripts/patch-opennext.js",
+    "build": "node scripts/patch-opennext.js && next build && opennextjs-cloudflare build --skipNextBuild",
+    "cf:build": "node scripts/patch-opennext.js && opennextjs-cloudflare build",
     "deploy": "npm run build && npx wrangler deploy",
     "start": "next start",
     "lint": "next lint"
