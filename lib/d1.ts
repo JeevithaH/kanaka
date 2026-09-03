@@ -157,6 +157,71 @@ export async function ensureD1Tables(db: any) {
         updatedAt TEXT,
         UNIQUE(userId, courseId)
       );
+      CREATE TABLE IF NOT EXISTS internships (
+        id TEXT PRIMARY KEY,
+        internshipId TEXT UNIQUE NOT NULL,
+        title TEXT NOT NULL,
+        organization TEXT DEFAULT 'Skyrellac Labs',
+        mode TEXT DEFAULT 'Remote',
+        durationWeeks INTEGER DEFAULT 8,
+        validationFee REAL DEFAULT 499,
+        isPublished INTEGER DEFAULT 1,
+        description TEXT DEFAULT '',
+        deliverables TEXT DEFAULT '[]',
+        createdAt TEXT,
+        updatedAt TEXT
+      );
+      CREATE TABLE IF NOT EXISTS internship_enrollments (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        internshipId TEXT NOT NULL,
+        enrollmentDate TEXT,
+        status TEXT DEFAULT 'active',
+        progressPercentage REAL DEFAULT 0,
+        validationStatus TEXT DEFAULT 'pending',
+        validationFee REAL DEFAULT 499,
+        taskProgress TEXT DEFAULT '[]',
+        certificateStatus TEXT DEFAULT '{}',
+        createdAt TEXT,
+        updatedAt TEXT,
+        UNIQUE(userId, internshipId)
+      );
+      CREATE TABLE IF NOT EXISTS task_submissions (
+        id TEXT PRIMARY KEY,
+        taskId TEXT,
+        userId TEXT NOT NULL,
+        courseId TEXT,
+        submissionContent TEXT,
+        submittedAt TEXT,
+        status TEXT DEFAULT 'submitted',
+        mentorFeedback TEXT DEFAULT '',
+        createdAt TEXT,
+        updatedAt TEXT
+      );
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        type TEXT DEFAULT 'general',
+        isRead INTEGER DEFAULT 0,
+        relatedId TEXT,
+        createdAt TEXT,
+        updatedAt TEXT
+      );
+      CREATE TABLE IF NOT EXISTS test_attempts (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        courseId TEXT NOT NULL,
+        testId TEXT,
+        score REAL DEFAULT 0,
+        totalMarks REAL DEFAULT 100,
+        passed INTEGER DEFAULT 0,
+        answers TEXT DEFAULT '[]',
+        attemptedAt TEXT,
+        createdAt TEXT,
+        updatedAt TEXT
+      );
     `);
     schemaInitialized = true;
   } catch (err: any) {

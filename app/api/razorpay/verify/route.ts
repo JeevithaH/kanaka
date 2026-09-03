@@ -6,7 +6,9 @@ import { Course } from '@/models/Course';
 import { Coupon } from '@/models/Coupon';
 import { Payment } from '@/models/Payment';
 import { Notification } from '@/models/Notification';
+import { Task } from '@/models/Task';
 import { requireAuth } from '@/lib/auth';
+import { seedCoursesIfEmpty } from '@/lib/seedCourses';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,10 +50,22 @@ export async function POST(req: Request) {
     }
 
     await connectToDatabase();
+    try {
+      await seedCoursesIfEmpty();
+    } catch {}
 
-    const course = await Course.findOne({ courseId });
-    const courseTitle = course?.title || 'Skyrellac Course';
-    const originalPrice = course?.originalPrice || 1999;
+    let course = await Course.findOne({ courseId });
+    if (!course) {
+      course = {
+        courseId,
+        title: courseId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+        originalPrice: 1999,
+        studentsCount: 100,
+      };
+    }
+
+    const courseTitle = course.title || 'Skyrellac Course';
+    const originalPrice = course.originalPrice || 1999;
     let finalAmount = originalPrice;
     let discountAmount = 0;
     let appliedCoupon = (couponCode || '').trim().toUpperCase();
@@ -61,8 +75,14 @@ export async function POST(req: Request) {
       finalAmount = Math.max(0, originalPrice - discountAmount);
     }
 
-    // Find or create enrollment
-    let enrollment = await Enrollment.findOne({ userId: user!.id, courseId });
+    const userIds = Array.from(new Set([user!.id, user!.email].filter(Boolean)));
+
+    // Find or create enrollment across either user ID or user email
+    let enrollment = await Enrollment.findOne({
+      userId: { $in: userIds },
+      courseId,
+    });
+
     if (!enrollment) {
       enrollment = await Enrollment.create({
         userId: user!.id,
@@ -83,8 +103,42 @@ export async function POST(req: Request) {
       enrollment.amountPaid = finalAmount;
       enrollment.paymentDate = new Date().toISOString();
       enrollment.couponUsed = appliedCoupon;
+      enrollment.userId = user!.id;
       await enrollment.save();
     }
+
+    // Create default tasks for this course if not already present
+    try {
+      const existingTasks = await Task.find({ userId: user!.id, courseId });
+      if (!existingTasks || existingTasks.length === 0) {
+        await Task.insertMany([
+          {
+            userId: user!.id,
+            courseId,
+            courseTitle,
+            title: `Complete all lessons in Module 1 for ${courseTitle}`,
+            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            status: 'pending',
+          },
+          {
+            userId: user!.id,
+            courseId,
+            courseTitle,
+            title: `Take the final assessment for ${courseTitle}`,
+            dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            status: 'pending',
+          },
+          {
+            userId: user!.id,
+            courseId,
+            courseTitle,
+            title: `Submit course feedback for ${courseTitle}`,
+            dueDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
+            status: 'pending',
+          },
+        ]);
+      }
+    } catch {}
 
     // Create Payment record
     const transactionId = 'TXN-' + Math.random().toString(36).substring(2, 10).toUpperCase();

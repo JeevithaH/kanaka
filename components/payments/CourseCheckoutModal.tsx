@@ -139,6 +139,15 @@ export function CourseCheckoutModal({
 
               const verifyData = await verifyRes.json();
               if (verifyRes.ok) {
+                if (typeof window !== 'undefined') {
+                  try {
+                    const stored = JSON.parse(localStorage.getItem('skyrellac_enrolled_courses') || '[]');
+                    if (!stored.includes(courseId)) {
+                      stored.push(courseId);
+                      localStorage.setItem('skyrellac_enrolled_courses', JSON.stringify(stored));
+                    }
+                  } catch {}
+                }
                 onPaymentSuccess(verifyData.enrollment);
                 onClose();
               } else {
@@ -192,6 +201,15 @@ export function CourseCheckoutModal({
       const payData = await payRes.json();
 
       if (payRes.ok) {
+        if (typeof window !== 'undefined') {
+          try {
+            const stored = JSON.parse(localStorage.getItem('skyrellac_enrolled_courses') || '[]');
+            if (!stored.includes(courseId)) {
+              stored.push(courseId);
+              localStorage.setItem('skyrellac_enrolled_courses', JSON.stringify(stored));
+            }
+          } catch {}
+        }
         onPaymentSuccess(payData.enrollment);
         onClose();
       } else {
