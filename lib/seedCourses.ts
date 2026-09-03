@@ -1,12 +1,8 @@
 import { Course } from '@/models/Course';
 
-export async function seedCoursesIfEmpty() {
-  const count = await Course.countDocuments();
-  if (count > 0) return;
-
-  const seedData = [
-    {
-      courseId: 'ai-fundamentals',
+export const SEED_COURSES = [
+  {
+    courseId: 'ai-fundamentals',
       title: 'Artificial Intelligence Fundamentals',
       description: 'Master the core concepts of artificial intelligence, machine learning algorithms, neural networks, and modern generative AI applications in business and engineering.',
       instructor: {
@@ -470,6 +466,13 @@ export async function seedCoursesIfEmpty() {
     }
   ];
 
-  await Course.insertMany(seedData);
-  console.log('Seed courses inserted successfully into MongoDB.');
+export async function seedCoursesIfEmpty() {
+  try {
+    const count = await Course.countDocuments();
+    if (count === 0) {
+      await Course.insertMany(SEED_COURSES);
+    }
+  } catch (e) {
+    console.warn('seedCoursesIfEmpty notice:', e);
+  }
 }

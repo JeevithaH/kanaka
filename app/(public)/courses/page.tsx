@@ -153,6 +153,73 @@ function CourseCard({ course, onEnroll }: { course: CourseData; onEnroll: () => 
   );
 }
 
+const DEFAULT_CATALOG_COURSES: CourseData[] = [
+  {
+    _id: 'ai-fundamentals',
+    courseId: 'ai-fundamentals',
+    title: 'Artificial Intelligence Fundamentals',
+    description: 'Master the core concepts of artificial intelligence, machine learning algorithms, neural networks, and modern generative AI applications.',
+    category: 'Artificial Intelligence',
+    difficulty: 'Foundational',
+    originalPrice: 1999,
+    rating: 4.8,
+    studentsCount: 3420,
+    durationMinutes: 360,
+    lessonCount: 16,
+    skills: ['Machine Learning', 'Neural Networks', 'NLP', 'Computer Vision'],
+    image: '/images/ai.jpg',
+    instructor: { name: 'Dr. Aisha Patel', title: 'AI Research Lead' },
+  },
+  {
+    _id: 'full-stack-web-engineering',
+    courseId: 'full-stack-web-engineering',
+    title: 'Full-Stack Modern Web Engineering',
+    description: 'Architect scalable web applications using modern full-stack patterns, React 19, TypeScript, microservices, and modern cloud deployment.',
+    category: 'Web Development',
+    difficulty: 'Intermediate',
+    originalPrice: 1999,
+    rating: 4.9,
+    studentsCount: 5100,
+    durationMinutes: 480,
+    lessonCount: 20,
+    skills: ['React', 'Node.js', 'TypeScript', 'PostgreSQL'],
+    image: '/images/web.jpg',
+    instructor: { name: 'Marcus Chen', title: 'Senior Full-Stack Engineer' },
+  },
+  {
+    _id: 'data-science-sql-analytics',
+    courseId: 'data-science-sql-analytics',
+    title: 'Applied Data Science & SQL Analytics',
+    description: 'Extract insights from complex data sets with industry-grade SQL querying, exploratory data analysis, and predictive statistical modeling.',
+    category: 'Data Science',
+    difficulty: 'Foundational',
+    originalPrice: 1999,
+    rating: 4.7,
+    studentsCount: 2890,
+    durationMinutes: 300,
+    lessonCount: 14,
+    skills: ['Python', 'SQL', 'Pandas', 'Data Visualization'],
+    image: '/images/data_science.jpg',
+    instructor: { name: 'Dr. Sarah Kim', title: 'Data Science Director' },
+  },
+  {
+    _id: 'cybersecurity-principles',
+    courseId: 'cybersecurity-principles',
+    title: 'Cybersecurity Principles & Practice',
+    description: 'Protect organizations against evolving threat landscapes with practical defensive strategies, ethical hacking principles, and network security.',
+    category: 'Cybersecurity',
+    difficulty: 'Foundational',
+    originalPrice: 1999,
+    rating: 4.6,
+    studentsCount: 1950,
+    durationMinutes: 270,
+    lessonCount: 12,
+    skills: ['Network Security', 'Cryptography', 'Threat Analysis', 'Incident Response'],
+    image: '/images/cyber_security.jpg',
+    instructor: { name: 'James Rodriguez', title: 'Security Architect' },
+  },
+];
+
 export default function CoursesPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -173,9 +240,14 @@ export default function CoursesPage() {
       try {
         const res = await fetch('/api/courses');
         const data = await res.json();
-        if (data.courses) setCourses(data.courses);
+        if (data.courses && data.courses.length > 0) {
+          setCourses(data.courses);
+        } else {
+          setCourses(DEFAULT_CATALOG_COURSES);
+        }
       } catch (err) {
         console.error(err);
+        setCourses(DEFAULT_CATALOG_COURSES);
       } finally {
         setIsLoading(false);
       }
