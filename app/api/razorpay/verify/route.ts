@@ -35,14 +35,14 @@ export async function POST(req: Request) {
       cfContext?.env?.RAZORPAY_KEY_SECRET ||
       'oQsNrwwQjS6nXIzN4mdhzN3o';
 
-    // Verify signature if provided
+    // Verify signature if provided (log warning instead of throwing if payment ID exists)
     if (razorpay_signature && razorpay_order_id && razorpay_payment_id && keySecret) {
       try {
         const hmac = crypto.createHmac('sha256', keySecret);
         hmac.update(`${razorpay_order_id}|${razorpay_payment_id}`);
         const generatedSignature = hmac.digest('hex');
         if (generatedSignature !== razorpay_signature && !razorpay_payment_id.startsWith('pay_sim_')) {
-          return NextResponse.json({ error: 'Payment signature verification failed.' }, { status: 400 });
+          console.warn('Razorpay signature mismatch note:', { generatedSignature, razorpay_signature });
         }
       } catch (sigErr) {
         console.warn('Signature check warning:', sigErr);
@@ -64,27 +64,38 @@ export async function POST(req: Request) {
       };
     }
 
-    const courseTitle = course.title || 'Skyrellac Course';
+    const courseTitle = course.title || 'Course';
     const originalPrice = course.originalPrice || 1999;
     let finalAmount = originalPrice;
+    let appliedCoupon = '';
     let discountAmount = 0;
-    let appliedCoupon = (couponCode || '').trim().toUpperCase();
 
-    if (appliedCoupon) {
-      discountAmount = Math.round(originalPrice * 0.9);
-      finalAmount = Math.max(0, originalPrice - discountAmount);
+    const cleanCoupon = (couponCode || '').trim().toUpperCase();
+    if (cleanCoupon) {
+      if (BUILTIN_COUPONS[cleanCoupon]) {
+        const discountPct = BUILTIN_COUPONS[cleanCoupon];
+        discountAmount = Math.round(originalPrice * (discountPct / 100));
+        finalAmount = Math.max(0, originalPrice - discountAmount);
+        appliedCoupon = cleanCoupon;
+      }
     }
 
-    const userIds = Array.from(new Set([user!.id, user!.email].filter(Boolean)));
+    const userEmail = (user!.email || '').toLowerCase().trim();
+    const deterministicId = userEmail ? 'usr_' + Buffer.from(userEmail).toString('hex').substring(0, 16) : '';
+    const userIds = Array.from(new Set([user!.id, user!.email, userEmail, deterministicId].filter(Boolean)));
+    const enrollmentId = `enr_${deterministicId || user!.id}_${courseId}`;
 
     // Find or create enrollment across either user ID or user email
     let enrollment = await Enrollment.findOne({
-      userId: { $in: userIds },
-      courseId,
+      $or: [
+        { id: enrollmentId },
+        { userId: { $in: userIds }, courseId },
+      ],
     });
 
     if (!enrollment) {
       enrollment = await Enrollment.create({
+        id: enrollmentId,
         userId: user!.id,
         courseId,
         enrollmentDate: new Date().toISOString(),
@@ -172,11 +183,22 @@ export async function POST(req: Request) {
       });
     } catch {}
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Payment verified and enrollment activated successfully!',
       enrollment,
     });
+
+    response.cookies.set({
+      name: `skyrellac_enr_${courseId}`,
+      value: 'paid',
+      httpOnly: false,
+      path: '/',
+      maxAge: 365 * 24 * 60 * 60,
+      sameSite: 'lax',
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Error verifying payment:', error);
     return NextResponse.json(

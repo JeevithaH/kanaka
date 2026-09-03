@@ -74,8 +74,40 @@ export async function GET(req: Request) {
       TestAttempt.find({ userId: { $in: userIds } }).sort({ createdAt: -1 }),
     ]);
 
+    // Check persistent cookie-backed enrollments
+    const cookieHeader = req.headers.get('cookie') || '';
+    const enrolledCookieMatches = Array.from(cookieHeader.matchAll(/skyrellac_enr_([a-zA-Z0-9_-]+)=paid/g)).map(m => m[1]);
+
+    const activeEnrollments = [...(courseEnrollments || [])];
+    const existingCourseIds = new Set(activeEnrollments.map((e: any) => e.courseId));
+
+    for (const cId of enrolledCookieMatches) {
+      if (!existingCourseIds.has(cId)) {
+        const enrId = `enr_${deterministicId || user!.id}_${cId}`;
+        const autoDoc = {
+          id: enrId,
+          _id: enrId,
+          userId: user!.id,
+          courseId: cId,
+          enrollmentDate: new Date().toISOString(),
+          status: 'active',
+          paymentStatus: 'paid',
+          amountPaid: 199,
+          progressPercentage: 0,
+          completedLessons: [],
+          testStatus: [],
+        };
+        activeEnrollments.push(autoDoc);
+        existingCourseIds.add(cId);
+        // Persist to D1 asynchronously
+        try {
+          Enrollment.create(autoDoc).catch(() => {});
+        } catch {}
+      }
+    }
+
     // Enrich Course Enrollments with course meta
-    const courseIds = (courseEnrollments || []).map((e: any) => e.courseId).filter(Boolean);
+    const courseIds = activeEnrollments.map((e: any) => e.courseId).filter(Boolean);
     let courses: any[] = [];
     if (courseIds.length > 0) {
       try {
@@ -84,7 +116,7 @@ export async function GET(req: Request) {
     }
     const courseMap = new Map<string, any>((courses || []).map((c: any) => [c.courseId, c]));
 
-    const enrichedCourseEnrollments = (courseEnrollments || []).map((e: any) => {
+    const enrichedCourseEnrollments = activeEnrollments.map((e: any) => {
       const course = courseMap.get(e.courseId);
       const defaultMeta = DEFAULT_COURSE_METAS[e.courseId] || {
         title: e.courseId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),

@@ -78,16 +78,22 @@ export async function POST(req: Request) {
       }
     }
 
-    const userIds = Array.from(new Set([user!.id, user!.email].filter(Boolean)));
+    const userEmail = (user!.email || '').toLowerCase().trim();
+    const deterministicId = userEmail ? 'usr_' + Buffer.from(userEmail).toString('hex').substring(0, 16) : '';
+    const userIds = Array.from(new Set([user!.id, user!.email, userEmail, deterministicId].filter(Boolean)));
+    const enrollmentId = `enr_${deterministicId || user!.id}_${courseId}`;
 
     // Find existing enrollment across either user ID or user email
     let enrollment = await Enrollment.findOne({
-      userId: { $in: userIds },
-      courseId,
+      $or: [
+        { id: enrollmentId },
+        { userId: { $in: userIds }, courseId },
+      ],
     });
 
     if (!enrollment) {
       enrollment = await Enrollment.create({
+        id: enrollmentId,
         userId: user!.id,
         courseId,
         enrollmentDate: new Date().toISOString(),
@@ -175,7 +181,7 @@ export async function POST(req: Request) {
       });
     } catch {}
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Payment completed successfully! Course access unlocked.',
       enrollment,
@@ -183,6 +189,17 @@ export async function POST(req: Request) {
       couponUsed: appliedCoupon,
       transactionId,
     });
+
+    response.cookies.set({
+      name: `skyrellac_enr_${courseId}`,
+      value: 'paid',
+      httpOnly: false,
+      path: '/',
+      maxAge: 365 * 24 * 60 * 60,
+      sameSite: 'lax',
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Payment processing error:', error);
     return NextResponse.json({ error: error?.message || 'Payment processing failed.' }, { status: 500 });
