@@ -24,51 +24,59 @@ export function Navbar() {
     await logout();
   };
 
-  return (
-    <header className="h-16 bg-white border-b border-[#e0e0e0] sticky top-0 z-50 font-sans">
-      <div className="max-w-[1584px] mx-auto px-4 h-full flex items-center justify-between">
+  const displayName = user?.name
+    ? user.name.includes('@')
+      ? user.name.split('@')[0]
+      : user.name.split(' ')[0]
+    : 'User';
 
-        {/* LEFT SECTION */}
-        <div className="flex items-center h-full">
+  return (
+    <header className="h-16 bg-white border-b border-[#e5dfd7] sticky top-0 z-50 font-sans">
+      <div className="max-w-[1584px] mx-auto px-3 sm:px-6 h-full flex items-center justify-between gap-2">
+
+        {/* LEFT SECTION: Hamburger + Logo + Nav */}
+        <div className="flex items-center h-full min-w-0">
 
           {/* Mobile Hamburger */}
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className="md:hidden mr-4 flex flex-col justify-center items-center w-6 h-6 space-y-1"
+            className="md:hidden mr-2.5 sm:mr-3.5 p-1.5 rounded-lg text-[#161616] hover:bg-[#f4efe9] transition-colors shrink-0"
             aria-label="Open menu"
           >
-            <span className="block w-5 h-[2px] bg-[#161616]" />
-            <span className="block w-5 h-[2px] bg-[#161616]" />
-            <span className="block w-5 h-[2px] bg-[#161616]" />
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
           </button>
 
-          {/* OVAL LOGO */}
-        <Link
-  href="/"
-  className="mr-10 flex items-center gap-3 shrink-0"
->
-  <Image
-    src="/images/logo.jpeg"
-    alt="Skyrellac EDU"
-    width={70}
-    height={70}
-    priority
-    className="h-[120px] w-[120px] object-contain"
-  />
+          {/* BRAND LOGO */}
+          <Link
+            href="/"
+            className="flex items-center gap-2 sm:gap-2.5 shrink-0 mr-4 lg:mr-8"
+          >
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg overflow-hidden shrink-0 border border-[#e5dfd7] bg-white relative shadow-2xs">
+              <Image
+                src="/images/logo.jpeg"
+                alt="Skyrellac EDU"
+                fill
+                priority
+                className="object-cover"
+              />
+            </div>
 
-  <div className="flex flex-col justify-center leading-none">
-    <span className="text-[14px] font-bold tracking-tight text-[#171717]">
-      SKYRELLAC
-    </span>
-
-    <span className="mt-1 text-[9px] font-semibold tracking-[0.28em] text-[#8B623F]">
-      EDU
-    </span>
-  </div>
-</Link>
+            <div className="flex flex-col justify-center leading-none">
+              <span className="text-xs sm:text-sm font-bold tracking-tight text-[#171717]">
+                SKYRELLAC
+              </span>
+              <span className="mt-0.5 text-[8px] sm:text-[9px] font-bold tracking-[0.2em] text-[#80664f]">
+                EDU
+              </span>
+            </div>
+          </Link>
 
           {/* DESKTOP NAVIGATION */}
-          <nav className="hidden md:flex items-center h-full space-x-6">
+          <nav className="hidden md:flex items-center h-full space-x-1 lg:space-x-4">
             {NAV_LINKS.map((link) => {
               const isActive = pathname === link.href;
 
@@ -76,10 +84,10 @@ export function Navbar() {
                 <Link
                   key={link.name}
                   href={link.href}
-                  className={`text-sm h-full flex items-center border-b-[2px] transition-colors ${
+                  className={`text-xs lg:text-sm px-2.5 py-1.5 rounded-md transition-colors ${
                     isActive
-                      ? 'text-[#161616] border-[#80664f]'
-                      : 'text-[#525252] hover:text-[#161616] border-transparent font-normal'
+                      ? 'text-[#161616] font-bold bg-[#f4efe9]'
+                      : 'text-[#544940] hover:text-[#161616] hover:bg-[#faf7f5] font-medium'
                   }`}
                 >
                   {link.name}
@@ -89,24 +97,24 @@ export function Navbar() {
           </nav>
         </div>
 
-        {/* RIGHT SECTION */}
-        <div className="flex items-center space-x-4">
-
+        {/* RIGHT SECTION: Auth / Actions */}
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {user ? (
             <>
-              {/* Dashboard */}
+              {/* Dashboard Link */}
               <Link
                 href="/dashboard"
-                className="text-sm font-semibold text-[#80664f] hover:underline"
+                className="text-xs sm:text-sm font-bold text-[#80664f] hover:text-[#5f4938] px-2 py-1.5 rounded-md hover:bg-[#f4efe9] transition-colors truncate max-w-[120px] sm:max-w-[180px]"
               >
-                Dashboard ({user.name.split(' ')[0]})
+                <span>Dashboard</span>
+                <span className="hidden sm:inline"> ({displayName})</span>
               </Link>
 
-              {/* Sign Out */}
+              {/* Sign Out Button */}
               <button
                 onClick={handleSignOut}
                 type="button"
-                className="bg-[#da1e28] text-white px-3.5 py-2 text-xs font-semibold hover:bg-[#b81922] transition-colors cursor-pointer"
+                className="bg-[#da1e28] hover:bg-[#b81922] text-white px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
               >
                 Sign out
               </button>
@@ -116,7 +124,7 @@ export function Navbar() {
               {/* Login */}
               <Link
                 href="/login"
-                className="text-sm text-[#161616] hover:text-[#80664f] transition-colors hidden md:block"
+                className="text-xs sm:text-sm font-semibold text-[#161616] hover:text-[#80664f] px-2 sm:px-3 py-1.5 transition-colors"
               >
                 Log in
               </Link>
@@ -124,7 +132,7 @@ export function Navbar() {
               {/* Sign Up */}
               <Link
                 href="/register"
-                className="bg-[#80664f] text-white px-4 py-2.5 text-sm hover:bg-[#5f4938] transition-colors"
+                className="bg-[#80664f] hover:bg-[#5f4938] text-white px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-bold rounded-lg transition-colors shadow-2xs"
               >
                 Sign up
               </Link>
@@ -133,61 +141,57 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* MOBILE MENU OVERLAY */}
+      {/* MOBILE MENU DRAWER */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black bg-opacity-50 md:hidden"
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs md:hidden"
           onClick={() => setMobileMenuOpen(false)}
         >
           <div
-            className="fixed inset-y-0 left-0 w-72 bg-white shadow-lg flex flex-col"
+            className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-white shadow-2xl flex flex-col font-sans"
             onClick={(e) => e.stopPropagation()}
           >
-
             {/* MOBILE HEADER */}
-            <div className="flex items-center justify-between h-16 px-4 border-b border-[#e0e0e0]">
-
-              {/* OVAL MOBILE LOGO */}
+            <div className="flex items-center justify-between h-16 px-4 border-b border-[#e5dfd7]">
               <Link
                 href="/"
-                className="flex items-center"
+                className="flex items-center gap-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <Image
-                  src="/images/logo.jpeg"
-                  alt="Skyrellac Logo"
-                  width={160}
-                  height={42}
-                  priority
-                  className="h-10 w-[160px] rounded-[50%] object-cover"
-                />
+                <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-[#e5dfd7] bg-white relative">
+                  <Image
+                    src="/images/logo.jpeg"
+                    alt="Skyrellac"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <span className="text-sm font-bold text-[#171717] tracking-tight">SKYRELLAC EDU</span>
               </Link>
 
               {/* Close Button */}
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-[#161616] p-2"
+                className="text-[#161616] p-2 hover:bg-[#f4efe9] rounded-lg cursor-pointer"
                 aria-label="Close menu"
               >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
 
-            {/* MOBILE NAVIGATION */}
-            <div className="flex flex-col py-5 px-5 space-y-5">
+            {/* User badge inside drawer if logged in */}
+            {user && (
+              <div className="p-4 bg-[#fbfaf8] border-b border-[#e5dfd7] space-y-0.5">
+                <p className="text-xs font-bold text-[#161616] truncate">{user.name}</p>
+                <p className="text-[11px] text-[#8a7f76] truncate">{user.email}</p>
+              </div>
+            )}
 
+            {/* MOBILE NAVIGATION LINKS */}
+            <div className="flex flex-col py-4 px-3 space-y-1 flex-1 overflow-y-auto">
               {NAV_LINKS.map((link) => {
                 const isActive = pathname === link.href;
 
@@ -195,10 +199,10 @@ export function Navbar() {
                   <Link
                     key={link.name}
                     href={link.href}
-                    className={`text-sm ${
+                    className={`px-3 py-2.5 rounded-lg text-sm transition-colors ${
                       isActive
-                        ? 'text-[#161616] font-semibold'
-                        : 'text-[#525252] font-normal'
+                        ? 'bg-[#f4efe9] text-[#80664f] font-bold'
+                        : 'text-[#544940] hover:text-[#161616] hover:bg-[#faf7f5] font-medium'
                     }`}
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -207,14 +211,13 @@ export function Navbar() {
                 );
               })}
 
-              {/* MOBILE AUTH */}
-              <div className="pt-5 mt-2 border-t border-[#e0e0e0] flex flex-col space-y-4">
-
+              {/* MOBILE AUTH LINKS */}
+              <div className="pt-4 mt-2 border-t border-[#e5dfd7] flex flex-col space-y-2">
                 {user ? (
                   <>
                     <Link
                       href="/dashboard"
-                      className="text-sm text-[#80664f] font-semibold"
+                      className="px-3 py-2.5 rounded-lg text-sm text-[#80664f] font-bold hover:bg-[#f4efe9]"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Go to Dashboard
@@ -226,7 +229,7 @@ export function Navbar() {
                         await handleSignOut(e);
                       }}
                       type="button"
-                      className="text-sm text-[#da1e28] text-left font-semibold cursor-pointer"
+                      className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-[#da1e28] font-bold hover:bg-rose-50 cursor-pointer"
                     >
                       Sign out
                     </button>
@@ -235,7 +238,7 @@ export function Navbar() {
                   <>
                     <Link
                       href="/login"
-                      className="text-sm text-[#161616]"
+                      className="px-3 py-2 rounded-lg text-sm text-[#161616] font-semibold hover:bg-[#f4efe9]"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Log in
@@ -243,14 +246,13 @@ export function Navbar() {
 
                     <Link
                       href="/register"
-                      className="text-sm text-[#80664f] font-semibold"
+                      className="px-3 py-2.5 rounded-lg text-sm text-white bg-[#80664f] font-bold text-center shadow-2xs"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      Sign up
+                      Sign up for free
                     </Link>
                   </>
                 )}
-
               </div>
             </div>
           </div>

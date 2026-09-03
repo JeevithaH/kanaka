@@ -245,22 +245,22 @@ function StudentDashboardContent() {
           </div>
 
           {/* Quick Metrics in Black & Brown */}
-          <div className="flex items-center gap-6 border-t lg:border-t-0 lg:border-l border-[#e5dfd7] pt-4 lg:pt-0 lg:pl-8 shrink-0">
-            <div className="text-center min-w-[60px]">
-              <p className="text-3xl font-bold text-[#161616]">{courseEnrollments.length}</p>
-              <p className="text-xs text-[#8a7f76] font-semibold mt-0.5">Enrolled</p>
+          <div className="grid grid-cols-3 sm:flex items-center justify-around gap-2 sm:gap-6 border-t lg:border-t-0 lg:border-l border-[#e5dfd7] pt-4 lg:pt-0 lg:pl-8 shrink-0 w-full lg:w-auto">
+            <div className="text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-[#161616]">{courseEnrollments.length}</p>
+              <p className="text-[11px] sm:text-xs text-[#8a7f76] font-semibold mt-0.5">Enrolled</p>
             </div>
-            <div className="w-px h-8 bg-[#e5dfd7]" />
-            <div className="text-center min-w-[60px]">
-              <p className="text-3xl font-bold text-[#80664f]">{completedCourses.length}</p>
-              <p className="text-xs text-[#8a7f76] font-semibold mt-0.5">Completed</p>
+            <div className="hidden sm:block w-px h-8 bg-[#e5dfd7]" />
+            <div className="text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-[#80664f]">{completedCourses.length}</p>
+              <p className="text-[11px] sm:text-xs text-[#8a7f76] font-semibold mt-0.5">Completed</p>
             </div>
-            <div className="w-px h-8 bg-[#e5dfd7]" />
-            <div className="text-center min-w-[60px]">
-              <p className="text-3xl font-bold text-[#198038]">
+            <div className="hidden sm:block w-px h-8 bg-[#e5dfd7]" />
+            <div className="text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-[#198038]">
                 {courseEnrollments.filter((c) => c.certificateStatus?.issued).length}
               </p>
-              <p className="text-xs text-[#8a7f76] font-semibold mt-0.5">Certificates</p>
+              <p className="text-[11px] sm:text-xs text-[#8a7f76] font-semibold mt-0.5">Certificates</p>
             </div>
           </div>
         </div>
