@@ -1,6 +1,6 @@
 import { getD1Database, ensureD1Tables } from './d1';
 
-// Global memory cache for edge worker isolates
+// Global memory cache for fallback
 const globalEdgeStore: Record<string, any[]> = {};
 
 function getEdgeCollection(name: string): any[] {
@@ -9,6 +9,23 @@ function getEdgeCollection(name: string): any[] {
   }
   return globalEdgeStore[name];
 }
+
+// Allowed columns per table in Cloudflare D1
+const TABLE_COLUMNS: Record<string, Set<string>> = {
+  users: new Set(['id', 'fullName', 'email', 'passwordHash', 'role', 'accountStatus', 'isActive', 'profile', 'registrationDate', 'lastLogin', 'isEmailVerified', 'createdAt', 'updatedAt']),
+  courses: new Set(['courseId', 'title', 'description', 'instructor', 'image', 'originalPrice', 'discountedPrice', 'discountPercentage', 'rating', 'studentsCount', 'category', 'difficulty', 'durationMinutes', 'lessonCount', 'certificateEligible', 'isPublished', 'skills', 'modules', 'tests', 'createdAt', 'updatedAt']),
+  enrollments: new Set(['id', 'userId', 'courseId', 'enrollmentDate', 'status', 'paymentStatus', 'amountPaid', 'paymentDate', 'progressPercentage', 'completedLessons', 'testStatus', 'certificateStatus', 'couponUsed', 'createdAt', 'updatedAt']),
+  coupons: new Set(['id', 'code', 'discountPercentage', 'discountAmount', 'type', 'applicableTo', 'maxUses', 'currentUses', 'isActive', 'createdBy', 'validUntil', 'createdAt', 'updatedAt']),
+  payments: new Set(['id', 'transactionId', 'userId', 'userName', 'userEmail', 'amount', 'currency', 'paymentStatus', 'paymentMethod', 'serviceType', 'serviceId', 'serviceName', 'couponUsed', 'discountAmount', 'gatewayReference', 'createdAt', 'updatedAt']),
+  certificates: new Set(['certificateId', 'userId', 'courseId', 'userName', 'courseTitle', 'issueDate', 'completionDate', 'testScore', 'testTotal', 'authorizedIssuer', 'createdAt', 'updatedAt']),
+  tasks: new Set(['id', 'userId', 'courseId', 'courseTitle', 'title', 'description', 'dueDate', 'status', 'createdAt', 'updatedAt']),
+  feedbacks: new Set(['id', 'userId', 'courseId', 'rating', 'review', 'createdAt', 'updatedAt']),
+  internships: new Set(['id', 'internshipId', 'title', 'organization', 'mode', 'durationWeeks', 'validationFee', 'isPublished', 'description', 'deliverables', 'createdAt', 'updatedAt']),
+  internship_enrollments: new Set(['id', 'userId', 'internshipId', 'enrollmentDate', 'status', 'progressPercentage', 'validationStatus', 'validationFee', 'taskProgress', 'certificateStatus', 'createdAt', 'updatedAt']),
+  task_submissions: new Set(['id', 'taskId', 'userId', 'courseId', 'submissionContent', 'submittedAt', 'status', 'mentorFeedback', 'createdAt', 'updatedAt']),
+  notifications: new Set(['id', 'userId', 'title', 'message', 'type', 'isRead', 'relatedId', 'createdAt', 'updatedAt']),
+  test_attempts: new Set(['id', 'userId', 'courseId', 'testId', 'score', 'totalMarks', 'passed', 'answers', 'attemptedAt', 'createdAt', 'updatedAt']),
+};
 
 function matchFilter(item: any, filter: any): boolean {
   if (!filter || Object.keys(filter).length === 0) return true;
@@ -29,7 +46,9 @@ function matchFilter(item: any, filter: any): boolean {
         if (!filterVal.$in.map(String).includes(String(itemVal))) return false;
       }
     } else if (filterVal !== undefined && itemVal !== undefined) {
-      if (String(itemVal).toLowerCase() !== String(filterVal).toLowerCase()) {
+      if (typeof filterVal === 'boolean') {
+        if (Boolean(itemVal) !== filterVal) return false;
+      } else if (String(itemVal).toLowerCase() !== String(filterVal).toLowerCase()) {
         return false;
       }
     }
@@ -43,6 +62,22 @@ export function parseD1Row(row: any): any {
   const unifiedId = row.id || row.courseId || row.internshipId || row.certificateId || row._id || '';
   parsed.id = unifiedId;
   parsed._id = unifiedId;
+
+  if (typeof parsed.isActive === 'number') {
+    parsed.isActive = parsed.isActive === 1;
+  }
+  if (typeof parsed.isPublished === 'number') {
+    parsed.isPublished = parsed.isPublished === 1;
+  }
+  if (typeof parsed.certificateEligible === 'number') {
+    parsed.certificateEligible = parsed.certificateEligible === 1;
+  }
+  if (typeof parsed.isRead === 'number') {
+    parsed.isRead = parsed.isRead === 1;
+  }
+  if (typeof parsed.passed === 'number') {
+    parsed.passed = parsed.passed === 1;
+  }
 
   // Auto-parse JSON string fields
   const jsonFields = [
@@ -109,7 +144,9 @@ class EdgeQuery<T> {
             const subConds: string[] = [];
             for (const key of Object.keys(subFilter)) {
               const col = key === '_id' ? 'id' : key;
-              const val = subFilter[key];
+              let val = subFilter[key];
+              if (typeof val === 'boolean') val = val ? 1 : 0;
+
               if (val && typeof val === 'object' && val.$in && Array.isArray(val.$in)) {
                 if (val.$in.length === 0) {
                   subConds.push('1 = 0');
@@ -135,7 +172,8 @@ class EdgeQuery<T> {
         for (const key of Object.keys(this.filter)) {
           if (key === '$or') continue;
           const col = key === '_id' ? 'id' : key;
-          const val = this.filter[key];
+          let val = this.filter[key];
+          if (typeof val === 'boolean') val = val ? 1 : 0;
 
           if (val && typeof val === 'object') {
             if (val.$in && Array.isArray(val.$in)) {
@@ -168,6 +206,7 @@ class EdgeQuery<T> {
           if (row) {
             return new this.modelClass(parseD1Row(row));
           }
+          return null;
         } else {
           const { results } = await db.prepare(query).bind(...params).all();
           if (results && results.length > 0) {
@@ -176,7 +215,7 @@ class EdgeQuery<T> {
           return [];
         }
       } catch (err: any) {
-        console.warn(`D1 query failed on ${this.collection}:`, err?.message || err);
+        console.warn(`D1 query notice on ${this.collection}:`, err?.message || err);
       }
     }
 
@@ -216,28 +255,34 @@ export class AtlasModel<T> {
     if (db) {
       try {
         await ensureD1Tables(db);
-        // Clean out functions, _id, and internal fields before D1 insert
+        const allowedCols = TABLE_COLUMNS[this.collection];
         const keys: string[] = [];
         const values: any[] = [];
 
         for (const key of Object.keys(normalizedDoc)) {
           if (key === '_id' || key === '__v' || key === 'save' || key === 'toObject') continue;
-          const v = normalizedDoc[key];
+          if (allowedCols && !allowedCols.has(key)) continue;
+
+          let v = normalizedDoc[key];
           if (typeof v === 'function') continue;
 
           keys.push(key);
-          if (typeof v === 'object' && v !== null) {
+          if (typeof v === 'boolean') {
+            values.push(v ? 1 : 0);
+          } else if (typeof v === 'object' && v !== null) {
             values.push(JSON.stringify(v));
           } else {
-            values.push(v);
+            values.push(v ?? null);
           }
         }
 
-        const placeholders = keys.map(() => '?').join(', ');
-        const sql = `INSERT OR REPLACE INTO ${this.collection} (${keys.join(', ')}) VALUES (${placeholders})`;
-        await db.prepare(sql).bind(...values).run();
+        if (keys.length > 0) {
+          const placeholders = keys.map(() => '?').join(', ');
+          const sql = `INSERT OR REPLACE INTO ${this.collection} (${keys.join(', ')}) VALUES (${placeholders})`;
+          await db.prepare(sql).bind(...values).run();
+        }
       } catch (err: any) {
-        console.warn(`D1 create failed on ${this.collection}:`, err?.message || err);
+        console.warn(`D1 create notice on ${this.collection}:`, err?.message || err);
       }
     }
 
@@ -262,19 +307,24 @@ export class AtlasModel<T> {
     if (db) {
       try {
         await ensureD1Tables(db);
+        const allowedCols = TABLE_COLUMNS[this.collection];
         const setClauses: string[] = [];
         const values: any[] = [];
 
         for (const key of Object.keys(updateData)) {
           if (key === '_id' || key === '__v' || key === 'save' || key === 'toObject') continue;
-          const v = updateData[key];
+          if (allowedCols && !allowedCols.has(key)) continue;
+
+          let v = updateData[key];
           if (typeof v === 'function') continue;
 
           setClauses.push(`${key} = ?`);
-          if (typeof v === 'object' && v !== null) {
+          if (typeof v === 'boolean') {
+            values.push(v ? 1 : 0);
+          } else if (typeof v === 'object' && v !== null) {
             values.push(JSON.stringify(v));
           } else {
-            values.push(v);
+            values.push(v ?? null);
           }
         }
 
@@ -282,7 +332,9 @@ export class AtlasModel<T> {
         for (const key of Object.keys(filter)) {
           const col = key === '_id' ? 'id' : key;
           whereClauses.push(`${col} = ?`);
-          values.push(filter[key]);
+          let v = filter[key];
+          if (typeof v === 'boolean') v = v ? 1 : 0;
+          values.push(v);
         }
 
         if (setClauses.length > 0 && whereClauses.length > 0) {
@@ -290,7 +342,7 @@ export class AtlasModel<T> {
           await db.prepare(sql).bind(...values).run();
         }
       } catch (err: any) {
-        console.warn(`D1 updateOne failed on ${this.collection}:`, err?.message || err);
+        console.warn(`D1 updateOne notice on ${this.collection}:`, err?.message || err);
       }
     }
 

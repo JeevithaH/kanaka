@@ -3,7 +3,7 @@
 let schemaInitialized = false;
 
 export function getD1Database(): any {
-  // 1. OpenNext Cloudflare global context symbol (production)
+  // 1. Official OpenNext context via global symbol
   try {
     const cfContext = (globalThis as any)[Symbol.for('__cloudflare-context__')];
     if (cfContext?.env?.DB) {
@@ -32,7 +32,7 @@ export async function ensureD1Tables(db: any) {
   if (!db || schemaInitialized) return;
 
   try {
-    // Single atomic exec call creates all tables without exceeding subrequest limits
+    // Atomic table creation
     await db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -45,6 +45,7 @@ export async function ensureD1Tables(db: any) {
         profile TEXT DEFAULT '{}',
         registrationDate TEXT,
         lastLogin TEXT,
+        isEmailVerified INTEGER DEFAULT 1,
         createdAt TEXT,
         updatedAt TEXT
       );
@@ -99,6 +100,8 @@ export async function ensureD1Tables(db: any) {
         maxUses INTEGER DEFAULT 1000,
         currentUses INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1,
+        createdBy TEXT DEFAULT '',
+        validUntil TEXT,
         createdAt TEXT,
         updatedAt TEXT
       );
@@ -223,9 +226,24 @@ export async function ensureD1Tables(db: any) {
         updatedAt TEXT
       );
     `);
+
+    // Safe column migrations in case tables existed prior
+    const safeAlterColumns = [
+      'ALTER TABLE coupons ADD COLUMN createdBy TEXT DEFAULT "";',
+      'ALTER TABLE coupons ADD COLUMN validUntil TEXT;',
+      'ALTER TABLE users ADD COLUMN isEmailVerified INTEGER DEFAULT 1;',
+      'ALTER TABLE enrollments ADD COLUMN couponUsed TEXT DEFAULT "";',
+    ];
+
+    for (const sql of safeAlterColumns) {
+      try {
+        await db.prepare(sql).run();
+      } catch {}
+    }
+
     schemaInitialized = true;
   } catch (err: any) {
-    // If exec fails or already exists, proceed gracefully
+    console.warn('ensureD1Tables exec notice:', err?.message || err);
     schemaInitialized = true;
   }
 }

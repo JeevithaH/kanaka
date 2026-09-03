@@ -75,6 +75,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     document.cookie = 'skyrellac_session=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;';
     document.cookie = 'skyrellac_session=; max-age=0; path=/;';
 
+    // Clean up client-side caches
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('skyrellac_enrolled_courses');
+        if (user?.email) {
+          localStorage.removeItem(`skyrellac_enrolled_${user.email.toLowerCase()}`);
+        }
+      } catch {}
+    }
+
     setUser(null);
 
     // Hard redirect to home page

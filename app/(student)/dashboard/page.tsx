@@ -121,7 +121,9 @@ function StudentDashboardContent() {
       // Check if localStorage has any paid enrollments not yet returned by backend
       if (typeof window !== 'undefined') {
         try {
-          const storedIds: string[] = JSON.parse(localStorage.getItem('skyrellac_enrolled_courses') || '[]');
+          const userKey = user?.email ? `skyrellac_enrolled_${user.email.toLowerCase()}` : '';
+          const rawStored = userKey ? localStorage.getItem(userKey) : localStorage.getItem('skyrellac_enrolled_courses');
+          const storedIds: string[] = JSON.parse(rawStored || '[]');
           const existingIds = new Set(enrollments.map((e) => e.courseId));
           const missingIds = storedIds.filter((id) => !existingIds.has(id));
 

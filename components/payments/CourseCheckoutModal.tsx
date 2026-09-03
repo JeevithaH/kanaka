@@ -141,10 +141,11 @@ export function CourseCheckoutModal({
               if (verifyRes.ok) {
                 if (typeof window !== 'undefined') {
                   try {
-                    const stored = JSON.parse(localStorage.getItem('skyrellac_enrolled_courses') || '[]');
+                    const key = user?.email ? `skyrellac_enrolled_${user.email.toLowerCase()}` : 'skyrellac_enrolled_courses';
+                    const stored = JSON.parse(localStorage.getItem(key) || '[]');
                     if (!stored.includes(courseId)) {
                       stored.push(courseId);
-                      localStorage.setItem('skyrellac_enrolled_courses', JSON.stringify(stored));
+                      localStorage.setItem(key, JSON.stringify(stored));
                     }
                   } catch {}
                 }
@@ -203,10 +204,11 @@ export function CourseCheckoutModal({
       if (payRes.ok) {
         if (typeof window !== 'undefined') {
           try {
-            const stored = JSON.parse(localStorage.getItem('skyrellac_enrolled_courses') || '[]');
+            const key = user?.email ? `skyrellac_enrolled_${user.email.toLowerCase()}` : 'skyrellac_enrolled_courses';
+            const stored = JSON.parse(localStorage.getItem(key) || '[]');
             if (!stored.includes(courseId)) {
               stored.push(courseId);
-              localStorage.setItem('skyrellac_enrolled_courses', JSON.stringify(stored));
+              localStorage.setItem(key, JSON.stringify(stored));
             }
           } catch {}
         }

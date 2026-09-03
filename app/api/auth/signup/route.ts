@@ -37,20 +37,22 @@ export async function POST(req: Request) {
     }
 
     const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
+    const cleanEmail = email.toLowerCase().trim();
+    const deterministicId = 'usr_' + Buffer.from(cleanEmail).toString('hex').substring(0, 16);
 
     const savedUser = await User.create({
+      id: deterministicId,
       fullName,
-      email: email.toLowerCase(),
+      email: cleanEmail,
       passwordHash,
       role: 'student',
     });
 
     const userData = {
-      id: savedUser._id.toString(),
-      email: savedUser.email,
-      name: savedUser.fullName,
-      role: savedUser.role,
+      id: deterministicId,
+      email: savedUser.email || cleanEmail,
+      name: savedUser.fullName || fullName,
+      role: savedUser.role || 'student',
     };
 
     const response = NextResponse.json(

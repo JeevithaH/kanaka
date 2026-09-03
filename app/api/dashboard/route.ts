@@ -51,7 +51,9 @@ export async function GET(req: Request) {
       await seedCoursesIfEmpty();
     } catch {}
 
-    const userIds = Array.from(new Set([user!.id, user!.email].filter(Boolean)));
+    const userEmail = (user!.email || '').toLowerCase().trim();
+    const deterministicId = userEmail ? 'usr_' + Buffer.from(userEmail).toString('hex').substring(0, 16) : '';
+    const userIds = Array.from(new Set([user!.id, user!.email, userEmail, deterministicId].filter(Boolean)));
 
     // Fetch all user enrollments and data concurrently across both user.id and user.email
     const [

@@ -67,9 +67,13 @@ export async function POST(req: Request) {
       await user.save();
     } catch {}
 
+    const cleanUserEmail = (user.email || cleanEmail).toLowerCase().trim();
+    const deterministicId = 'usr_' + Buffer.from(cleanUserEmail).toString('hex').substring(0, 16);
+    const userId = user.id || user._id ? String(user.id || user._id) : deterministicId;
+
     const userData = {
-      id: user.id || user._id ? String(user.id || user._id) : 'usr_' + Math.random().toString(36).substring(2, 9),
-      email: user.email,
+      id: userId,
+      email: cleanUserEmail,
       name: user.fullName || (isAdminEmail ? 'Admin' : 'Learner'),
       role: user.role || (isAdminEmail ? 'admin' : 'student'),
     };
